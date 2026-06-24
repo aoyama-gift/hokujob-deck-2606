@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ほくジョブ｜AI提案 MVPデモ｜GIFT</title>
+<style>
+:root{--navy:#0A0E2B;--navy-2:#13315c;--teal:#1c8c8c;--teal-2:#2bb0a8;--sky:#65B9DD;--elec:#2E5BFF;--gold:#D4AF37;--paper:#fff;--ink:#1b2733;--muted:#6b7a8d;--line:#dfe7f1;}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100vh}
+body{font-family:"Noto Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",YuGothic,"Meiryo",sans-serif;background:linear-gradient(180deg,#0A0E2B 0%,#13315c 60%,#1A3FBF 100%);color:#fff;-webkit-font-smoothing:antialiased;line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+.glow{position:absolute;border-radius:50%;filter:blur(110px);mix-blend-mode:screen;pointer-events:none}
+.gA{width:560px;height:560px;left:-160px;top:80px;background:radial-gradient(circle,#2E5BFF,transparent 70%);opacity:.5}
+.gB{width:480px;height:480px;right:-120px;top:-60px;background:radial-gradient(circle,#65B9DD,transparent 70%);opacity:.45}
+header{position:relative;padding:42px 7vw 18px;display:flex;align-items:center;gap:14px;z-index:2}
+header .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#2E5BFF,#65B9DD);display:grid;place-items:center;box-shadow:0 6px 18px rgba(46,91,255,.4)}
+header .logo svg{width:26px;height:26px}
+header .htxt h1{margin:0;font-size:20px;letter-spacing:.04em;font-weight:900}
+header .htxt p{margin:0;font-size:12.5px;color:#cdddf5;letter-spacing:.04em}
+header .badge-brand{margin-left:auto;font-size:12px;color:#cfe0f2;border:1px solid rgba(255,255,255,.25);padding:6px 14px;border-radius:999px;white-space:nowrap}
+.hero{position:relative;padding:24px 7vw 18px;z-index:2}
+.hero .eyebrow{display:inline-block;font-size:13px;letter-spacing:.36em;color:#65B9DD;font-weight:800;border-bottom:2px solid #D4AF37;padding-bottom:6px}
+.hero h2{font-size:38px;line-height:1.22;margin:16px 0 10px;font-weight:900;text-shadow:0 2px 20px rgba(6,12,34,.5)}
+.hero h2 .kw{background:linear-gradient(100deg,#65B9DD,#2E5BFF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:16px;color:#cdddf5;max-width:760px;margin:0}
+.cards{position:relative;padding:30px 7vw 48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:22px;z-index:2}
+.card{position:relative;background:rgba(255,255,255,.07);border:1px solid rgba(140,180,255,.34);border-radius:18px;padding:26px 24px 24px;backdrop-filter:blur(10px);display:flex;flex-direction:column;gap:14px;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s,border-color .35s;text-decoration:none;color:inherit;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 95% at 30% 0%,rgba(46,91,255,.25),transparent 60%);opacity:0;transition:opacity .35s}
+.card:hover{transform:translateY(-6px);box-shadow:0 22px 60px rgba(0,0,0,.45);border-color:rgba(130,185,255,.85)}
+.card:hover::before{opacity:1}
+.card .num{display:inline-flex;width:42px;height:42px;border-radius:11px;background:linear-gradient(120deg,#2E5BFF,#65B9DD);color:#fff;font-weight:900;align-items:center;justify-content:center;font-size:18px;letter-spacing:.04em;flex:0 0 auto;box-shadow:0 6px 16px rgba(46,91,255,.45)}
+.card.job .num{background:linear-gradient(120deg,#1c8c8c,#2bb0a8)}
+.card.res .num{background:linear-gradient(120deg,#1A3FBF,#65B9DD)}
+.card.sns .num{background:linear-gradient(120deg,#a9508a,#d62976)}
+.card .agent{font-size:11px;font-weight:800;letter-spacing:.16em;color:#9fd0f5}
+.card h3{margin:0;font-size:24px;font-weight:900;line-height:1.25}
+.card h3 .kw{background:linear-gradient(100deg,#65B9DD,#2E5BFF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card p{margin:0;font-size:14px;color:#cdddf5;line-height:1.6}
+.card ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.card ul li{font-size:13px;color:#dff0ff;padding-left:18px;position:relative}
+.card ul li::before{content:"";position:absolute;left:0;top:9px;width:7px;height:7px;border-radius:50%;background:#65B9DD;box-shadow:0 0 8px #2E5BFF}
+.card .cta{margin-top:auto;display:inline-flex;align-items:center;gap:8px;justify-content:center;background:linear-gradient(100deg,#2E5BFF,#65B9DD);color:#fff;font-weight:800;font-size:14.5px;border-radius:12px;padding:13px 18px;letter-spacing:.04em;box-shadow:0 12px 26px rgba(46,91,255,.35);transition:transform .25s}
+.card:hover .cta{transform:translateY(-1px)}
+.card .cta svg{width:16px;height:16px}
+.card .tag{position:absolute;top:22px;right:22px;font-size:10.5px;font-weight:800;color:#cdddf5;background:rgba(46,91,255,.22);border:1px solid rgba(120,170,255,.45);padding:4px 10px;border-radius:999px;letter-spacing:.04em}
+.notes{position:relative;padding:0 7vw 40px;z-index:2}
+.notes .panel{background:rgba(10,18,46,.42);border:1px solid rgba(120,170,255,.3);border-radius:14px;padding:18px 22px;display:flex;align-items:flex-start;gap:14px;font-size:13.5px;color:#cdddf5;line-height:1.7}
+.notes .panel svg{flex:0 0 auto;color:#D4AF37}
+.notes .panel b{color:#fff}
+footer{margin-top:auto;padding:24px 7vw 34px;font-size:12px;color:#9fb6d6;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;z-index:2;position:relative}
+footer a{color:#9fd0f5;text-decoration:none}
+footer a:hover{color:#fff;text-decoration:underline}
+@media (max-width: 720px){
+ .hero h2{font-size:30px}
+ .hero{padding:18px 6vw 10px}
+ .cards{padding:24px 6vw 30px}
+ header{padding:30px 6vw 12px}
+}
+</style>
+</head>
+<body>
+<div class="glow gA"></div>
+<div class="glow gB"></div>
+
+<header>
+ <div class="logo">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+   <rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/><path d="M8 12h5"/><path d="M15 15l2 2 3.5-3.5" stroke="#D4AF37"/>
+  </svg>
+ </div>
+ <div class="htxt">
+  <h1>ほくジョブ ＡＩ提案 ｜ MVP デモ</h1>
+  <p>GIFT × 一般社団法人ほくジョブ</p>
+ </div>
+ <span class="badge-brand">3 Agents Preview</span>
+</header>
+
+<section class="hero">
+ <span class="eyebrow">TRY THE MVP</span>
+ <h2>3つのエージェントを、<span class="kw">そのまま触って</span>みてください。</h2>
+ <p class="lead">求人票（Job Agent）／履歴書＋職務経歴書（Résumé Agent）／SNS自動運用（Social Agent）。<br>提案デッキでお見せした動きを、実際にブラウザの上で動かせる形でご用意しました。</p>
+</section>
+
+<section class="cards">
+
+ <a class="card job" href="job/" target="_blank" rel="noopener">
+  <span class="tag">MVP 01</span>
+  <div class="num">1</div>
+  <div>
+   <div class="agent">JOB AGENT</div>
+   <h3><span class="kw">求人票</span>＋クライアントCRM</h3>
+  </div>
+  <p>既存スプレッドの並びそのまま。1クリックで「クライアント情報・タスク・メモ・求人情報」の4枠が1画面に。Job Agentで1か所更新すると、スプレッドと求人サイトに自動同期。</p>
+  <ul>
+   <li>求人マスター一覧（縦＝求人／横＝情報カラム）</li>
+   <li>4枠統合の詳細ページ＋求人サイトプレビュー</li>
+   <li>Job Agent更新 → スプレッド＋掲載サイトに同時反映</li>
+  </ul>
+  <span class="cta">この MVP を触ってみる
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  </span>
+ </a>
+
+ <a class="card res" href="resume/" target="_blank" rel="noopener">
+  <span class="tag">MVP 02</span>
+  <div class="num">2</div>
+  <div>
+   <div class="agent">RÉSUMÉ AGENT</div>
+   <h3><span class="kw">履歴書</span>＋職務経歴書</h3>
+  </div>
+  <p>Excel／Word をまとめてドロップ → AIが項目を自動構造化 → JIS-A4 履歴書と職務経歴書を同時組み上げ。校正4点（誤字・志望動機ズレ・空欄・個人情報）も自動で見せ場に。</p>
+  <ul>
+   <li>取り込み → 組み上げ → 整え → 送付</li>
+   <li>志望動機の軸提案＋応募先ごとに出し分け</li>
+   <li>「決めるのは人、形にするのはAI」</li>
+  </ul>
+  <span class="cta">この MVP を触ってみる
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  </span>
+ </a>
+
+ <a class="card sns" href="sns/" target="_blank" rel="noopener">
+  <span class="tag">MVP 03</span>
+  <div class="num">3</div>
+  <div>
+   <div class="agent">SOCIAL AGENT</div>
+   <h3><span class="kw">SNS</span>自動運用</h3>
+  </div>
+  <p>カレンダーで投稿枠を一元管理、AIが過去傾向から複数案を提案、画像のたたき台を生成→ノーコードで色・フォント・文字をその場編集→ Instagramに自動予約。</p>
+  <ul>
+   <li>毎日投稿スケジュール（月間カレンダー）</li>
+   <li>カルーセル4枚＋キャプション・ハッシュタグ編集</li>
+   <li>週1 → 毎日へ。集客費ゼロで年40名の実績を加速</li>
+  </ul>
+  <span class="cta">この MVP を触ってみる
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  </span>
+ </a>
+
+</section>
+
+<section class="notes">
+ <div class="panel">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5l3 2"/></svg>
+  <div>
+   <b>これは“側”だけが動く MVP プレビューです。</b>　実際のスプレッド／Instagram／LINE と接続せず、ブランド・操作感・UIフローだけを確認していただく目的のデモになります。<br>
+   各MVPは開くと自動でデモが進みます。右上「もう一度」で再生し直し、矢印キーや戻る／進むボタンで操作可能です。
+  </div>
+ </div>
+</section>
+
+<footer>
+ <span>© GIFT × ほくジョブ｜AI提案 MVPデモ</span>
+ <span><a href="../" rel="noopener">← 提案デッキ（全23スライド）に戻る</a></span>
+</footer>
+
+</body>
+</html>

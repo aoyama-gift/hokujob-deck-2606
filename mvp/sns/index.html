@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNS自動運用エージェント</title>
+<style>
+  :root{
+    --navy:#0b2545; --navy-2:#13315c; --teal:#1c8c8c; --teal-2:#2bb0a8;
+    --gold:#d4af37; --ink2:#1b2733; --muted:#6b7a8d; --line:#dfe7f1;
+    --ig:#d62976; --shadow:0 10px 30px rgba(11,37,69,.10);
+  }
+  *{box-sizing:border-box}
+  @font-face{font-family:'Yomogi';src:url('assets/Yomogi-Regular.ttf') format('truetype');font-display:swap}
+  .slide img.layer{width:100%;height:100%;object-fit:cover}
+  .tA .ribbon,.tA .sublabel,.tA .ttl,.tB .ttl,.tB .tag2{font-family:'Yomogi',var(--hf,sans-serif)}
+  html,body{margin:0;padding:0;overflow:hidden;height:100%}
+  body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;background:linear-gradient(160deg,#f4f8fd,#e7eef8);color:var(--ink2);-webkit-font-smoothing:antialiased}
+  .app{height:100vh;display:flex;flex-direction:column;padding:12px 16px;gap:9px}
+
+  header{display:flex;align-items:center;gap:12px;padding:9px 16px;background:linear-gradient(120deg,var(--navy),var(--navy-2));border-radius:13px;color:#fff;box-shadow:var(--shadow);position:relative;overflow:hidden;flex:0 0 auto}
+  header::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(212,175,55,.25),transparent 70%);pointer-events:none}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--teal);display:grid;place-items:center;flex:0 0 auto}.logo svg{width:20px;height:20px}
+  .htxt h1{margin:0;font-size:16px}.htxt p{margin:0;font-size:11px;color:#bcd0e8}
+  .badge-brand{margin-left:auto;font-size:11px;color:#cfe0f2;border:1px solid rgba(255,255,255,.25);padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .replay{position:relative;z-index:2;background:rgba(255,255,255,.12);border:0;color:#cfe0f2;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:8px;margin-left:12px}
+  .replay:hover{background:rgba(255,255,255,.22);color:#fff}
+
+  .caption{display:flex;align-items:center;gap:12px;padding:9px 15px;border-radius:12px;color:#fff;flex:0 0 auto;background:linear-gradient(120deg,var(--teal),var(--teal-2));box-shadow:0 6px 18px rgba(28,140,140,.28);transition:.4s}
+  .caption .cnum{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800;font-size:15px;flex:0 0 auto}
+  .caption .ctxt b{font-size:14px;display:block;line-height:1.25}.caption .ctxt span{font-size:11.5px;color:#e9fbf9}
+  .caption .spin{margin-left:auto;display:none}.caption.busy .spin{display:block}
+  .caption .spin svg{animation:spin 1.1s linear infinite;display:block}@keyframes spin{to{transform:rotate(360deg)}}
+  .caption.done-state{background:linear-gradient(120deg,var(--navy),var(--navy-2))}
+
+  .camviewport{flex:1 1 auto;position:relative;overflow:hidden;border-radius:14px;border:1px solid var(--line);background:#e9f0f9;min-height:0}
+  .camscene{position:absolute;top:0;left:0;width:1240px;transform-origin:0 0;transition:transform 1s cubic-bezier(.4,.1,.2,1);padding:18px}
+  .stage{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+  .card{background:#fff;border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--line)}
+  .card h2{font-size:12.5px;margin:0;padding:11px 15px;border-bottom:1px solid var(--line);color:var(--navy);display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--teal)}
+
+  .cal{padding:13px 14px}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+  .cal-head b{font-size:14px;color:var(--navy)}.cal-head span{font-size:10.5px;color:var(--muted)}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cal-grid .wd{font-size:9.5px;color:var(--muted);text-align:center;padding:2px 0}
+  .cal-grid .wd.sun{color:#d9534f}.cal-grid .wd.sat{color:#3b73c4}
+  .day{aspect-ratio:1;border:1px solid var(--line);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10.5px;color:var(--ink2);position:relative;background:#fbfdff}
+  .day.blank{border:0;background:transparent}
+  .day.today{border-color:var(--teal);box-shadow:0 0 0 2px rgba(28,140,140,.25);font-weight:800;color:var(--teal)}
+  .day .pdot{width:6px;height:6px;border-radius:50%;margin-top:2px;background:transparent}
+  .day.posted .pdot{background:var(--muted)}
+  .day.pick{outline:2px dashed var(--ig);outline-offset:1px}
+  .day.booked{background:rgba(214,41,118,.1);border-color:rgba(214,41,118,.5)}.day.booked .pdot{background:var(--ig)}
+  .day.pop{animation:pop .5s ease}@keyframes pop{0%{transform:scale(.6);opacity:.3}100%{transform:scale(1);opacity:1}}
+  .cal-legend{display:flex;gap:11px;margin-top:10px;font-size:10px;color:var(--muted);flex-wrap:wrap}
+  .cal-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  .cal-note{margin-top:8px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;line-height:1.5}
+
+  .ed-head{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid var(--line)}
+  .ed-title{font-size:12.5px;color:var(--navy);font-weight:700}.ed-step{margin-left:auto;font-size:10.5px;color:var(--muted)}
+  .ed-body{padding:13px 15px}
+  .screen{display:none}.screen.show{display:block}
+
+  .ai-say{font-size:10.5px;color:var(--teal);display:flex;gap:6px;margin-bottom:10px;line-height:1.5}
+  .ideas{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .idea{display:flex;flex-direction:column;gap:4px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#fbfdff;opacity:0;transform:translateY(8px);transition:.4s;cursor:pointer}
+  .idea.in{opacity:1;transform:none}.idea.picked{border-color:var(--teal);background:rgba(28,140,140,.06);box-shadow:0 0 0 2px rgba(28,140,140,.25)}
+  .idea.pressed{transform:scale(.97)}
+  .idea .it{font-size:12px;font-weight:700;color:var(--navy)}.idea .ib{font-size:10px;color:var(--muted)}
+  .idea .trend{align-self:flex-start;font-size:9px;font-weight:800;color:var(--teal);background:rgba(28,140,140,.1);padding:1px 7px;border-radius:5px}
+
+  .edit-grid{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start}
+  .esec{border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:10px;background:#fff}
+  .esec.lit{box-shadow:0 0 0 2px rgba(28,140,140,.3);border-color:var(--teal)}
+  .esec h4{font-size:11px;font-weight:800;color:var(--navy);margin:0 0 8px;display:flex;align-items:center;gap:6px}
+  .esec h4 .num{width:17px;height:17px;border-radius:5px;background:var(--teal);color:#fff;font-size:9px;display:grid;place-items:center}
+  .regen{display:flex;align-items:center;gap:8px}.regen .ok{font-size:10.5px;color:var(--teal);font-weight:700;display:flex;align-items:center;gap:4px}
+  .btn-s{font-size:10.5px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--navy);padding:6px 11px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-left:auto;transition:.15s}
+  .btn-s.pressed{transform:scale(.92);background:#eef6f6}
+  .tfield{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11px;background:#fbfdff;margin-bottom:6px}
+  .tfield .sn{font-size:9px;font-weight:800;color:#fff;background:var(--muted);width:17px;height:17px;border-radius:5px;display:grid;place-items:center;flex:0 0 auto}
+  .tfield.active{border-color:var(--teal);box-shadow:0 0 0 2px rgba(28,140,140,.18)}.tfield .tv{color:var(--ink2);flex:1}
+  .part-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .ptab{font-size:10.5px;padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--navy);transition:.15s}
+  .ptab.on{background:var(--navy);color:#fff;border-color:var(--navy)}.ptab.pressed{transform:scale(.92)}
+  .palette{display:flex;gap:7px;flex-wrap:wrap}
+  .pc{width:26px;height:26px;border-radius:7px;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;transition:.15s}
+  .pc.picked{box-shadow:0 0 0 2px var(--navy)}.pc.pressed{transform:scale(.85)}
+  .fchips{display:flex;gap:7px;flex-wrap:wrap}
+  .fchip{font-size:10.5px;padding:5px 11px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--navy);transition:.15s}
+  .fchip.picked{background:var(--navy);color:#fff;border-color:var(--navy)}.fchip.pressed{transform:scale(.92)}
+  .capbox{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--ink2);background:#fbfdff;line-height:1.6;min-height:54px}
+  .capbox.editing{border-color:var(--teal);box-shadow:0 0 0 2px rgba(28,140,140,.18)}.capbox .tag{color:#2a5db0}
+  .book-btn{width:100%;font-size:13px;font-weight:800;border:0;border-radius:11px;padding:12px;cursor:pointer;color:#fff;background:linear-gradient(120deg,var(--ig),#f3a04c);display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;margin-top:2px}
+  .book-btn.pressed{transform:scale(.97)}
+  .book-hint{font-size:10px;color:var(--muted);margin-top:6px;text-align:center}
+
+  .preview-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .igframe{width:300px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 24px rgba(11,37,69,.12)}
+  .igbar{display:flex;align-items:center;gap:7px;padding:7px 9px}
+  .igav{width:24px;height:24px;border-radius:50%;background:conic-gradient(from 30deg,#f3a04c,#d62976,#962fbf,#f3a04c);padding:2px}.igav i{display:block;width:100%;height:100%;border-radius:50%;background:#cfe0f2}
+  .igbar b{font-size:11px;color:var(--ink2)}.igbar .more{margin-left:auto;color:var(--muted)}
+  .igview{position:relative;width:300px;height:300px;overflow:hidden}
+  .igtrack{display:flex;height:100%;transition:transform .6s cubic-bezier(.3,.7,.3,1)}
+  .slide{min-width:300px;height:300px;position:relative;overflow:hidden;font-family:var(--hf,inherit)}
+  .igcount{position:absolute;top:10px;right:12px;background:rgba(0,0,0,.45);color:#fff;font-size:10px;padding:2px 8px;border-radius:999px;z-index:7}
+  .igdots{display:flex;gap:5px;justify-content:center;padding:8px 0 2px}
+  .igdots .d{width:6px;height:6px;border-radius:50%;background:var(--line)}.igdots .d.on{background:var(--teal)}
+  .igcap{padding:4px 10px 9px;font-size:10.5px;color:var(--ink2);line-height:1.5}.igcap .tag{color:#2a5db0}
+  .gen-ov{position:absolute;inset:0;background:rgba(255,255,255,.86);display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:9}
+  .gen-ov.show{display:flex}.gen-ov .gl{font-size:11px;color:var(--teal);font-weight:700}
+  .genprog{width:160px;height:5px;border-radius:4px;background:#e3eaf3;overflow:hidden}
+  .genprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--gold));transition:width 1.5s ease}
+
+  /* ===== 投稿スライド ===== */
+  .layer{position:absolute;inset:0}
+  .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.10),rgba(0,0,0,.34))}
+  .acct{position:absolute;left:12px;bottom:10px;font-size:9.5px;font-weight:800;display:flex;align-items:center;gap:5px;z-index:7}
+  .acct .lg{width:15px;height:15px;border-radius:4px;background:var(--accent,#ef7aa3);display:grid;place-items:center}
+  .acct .lg svg{width:10px;height:10px}
+  .star{position:absolute;z-index:6;opacity:.9}
+  .hokmap{position:absolute;z-index:1;opacity:.16}
+
+  /* テンプレA：リゾート特集 */
+  .tA .acct{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .tA .content{position:absolute;inset:0;padding:14px 14px 28px;display:flex;flex-direction:column;color:#fff;z-index:5}
+  .ribbon{align-self:center;position:relative;background:var(--accent,#ef7aa3);color:#fff;font-size:11.5px;font-weight:800;padding:4px 20px;border-radius:4px;box-shadow:0 3px 8px rgba(0,0,0,.18);letter-spacing:1px}
+  .ribbon::before,.ribbon::after{content:"";position:absolute;top:0;width:0;height:0;border:10px solid var(--accent,#ef7aa3)}
+  .ribbon::before{left:-9px;border-left-color:transparent}.ribbon::after{right:-9px;border-right-color:transparent}
+  .sublabel{align-self:center;margin-top:6px;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.85);color:#2a2a2a;padding:2px 10px;border-radius:999px}
+  .tA .ttl{margin-top:9px;font-size:25px;font-weight:900;line-height:1.26;text-shadow:0 2px 10px rgba(0,0,0,.4);white-space:pre-line}
+  .tA .ttl .em{background:var(--accent,#ef7aa3);padding:0 6px;border-radius:5px;box-decoration-break:clone}
+  .tA .sub{margin-top:6px;font-size:12px;font-weight:700;text-shadow:0 1px 6px rgba(0,0,0,.4)}
+  .points{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+  .pt{background:rgba(255,255,255,.94);color:#223;border-radius:9px;padding:6px 10px;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px;box-shadow:0 2px 7px rgba(0,0,0,.14)}
+  .pt .ck{color:var(--accent,#ef7aa3);font-weight:900;font-size:13px}
+  .pt .nm{margin-left:auto;color:var(--accent,#ef7aa3);font-size:15px;font-weight:900}
+  .steps{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+  .stp{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.94);color:#223;border-radius:9px;padding:6px 10px;font-size:11.5px;font-weight:700;box-shadow:0 2px 7px rgba(0,0,0,.14)}
+  .stp .no{width:18px;height:18px;border-radius:50%;background:var(--accent,#ef7aa3);color:#fff;font-size:10px;font-weight:900;display:grid;place-items:center;flex:0 0 auto}
+  .tA .badge{position:absolute;top:42px;right:-2px;background:#ffcf3f;color:#7a4a00;font-size:11px;font-weight:900;padding:5px 12px;border-radius:6px 0 0 6px;box-shadow:0 3px 8px rgba(0,0,0,.2);transform:rotate(2deg);z-index:6}
+  .tA .swipe{position:absolute;bottom:12px;right:12px;background:rgba(255,255,255,.94);color:#2a2a2a;font-size:10px;font-weight:800;padding:5px 12px;border-radius:999px;z-index:7}
+  .tA .mascot{position:absolute;bottom:-2px;right:8px;width:92px;z-index:4;filter:drop-shadow(0 3px 6px rgba(0,0,0,.25))}
+
+  /* テンプレB：条件ポップ */
+  .tB{background:var(--bg,#fffdf6)}
+  .tB .acct{color:var(--ink,#2a2a2a)}
+  .tB .content{position:absolute;inset:0;padding:16px 16px 26px;display:flex;flex-direction:column;color:var(--ink,#2a2a2a);z-index:5}
+  .tB .tag2{align-self:flex-start;font-size:11px;font-weight:800;color:#fff;background:var(--accent,#f0794b);padding:3px 11px;border-radius:999px}
+  .tB .ttl{margin-top:8px;font-size:24px;font-weight:900;line-height:1.3;white-space:pre-line}
+  .tB .ttl .em{color:var(--accent,#f0794b)}
+  .tB .mark{background:linear-gradient(transparent 58%,color-mix(in srgb,var(--accent,#f0794b) 35%,transparent) 0)}
+  .tB .hl{display:flex;align-items:baseline;gap:4px;margin-top:4px}
+  .tB .huge{font-size:54px;font-weight:900;color:var(--accent,#f0794b);line-height:1}
+  .tB .huge .u{font-size:22px;color:var(--ink,#2a2a2a)}
+  .ptB{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+  .ptb{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--ink,#2a2a2a)}
+  .ptb .ck{width:18px;height:18px;border-radius:50%;background:var(--accent,#f0794b);color:#fff;display:grid;place-items:center;font-size:11px;flex:0 0 auto}
+  .tB .sub{margin-top:6px;font-size:12px;font-weight:700;color:var(--ink,#2a2a2a)}
+  .tB .ill{position:absolute;right:14px;top:16px;opacity:.85;z-index:2}.tB .ill svg{stroke:var(--accent,#f0794b)}
+  .tB .dotsbg span{position:absolute;border-radius:50%;opacity:.45;z-index:1}
+
+  .mk.flash{animation:flash 1.4s ease}@keyframes flash{0%{box-shadow:0 0 0 0 rgba(28,140,140,.6)}60%{box-shadow:0 0 0 10px rgba(28,140,140,0)}100%{box-shadow:0 0 0 0 rgba(28,140,140,0)}}
+
+  #vcursor{position:fixed;left:-100px;top:-100px;width:28px;height:28px;z-index:90;pointer-events:none;transition:left .7s cubic-bezier(.4,.1,.2,1),top .7s cubic-bezier(.4,.1,.2,1);filter:drop-shadow(0 2px 5px rgba(0,0,0,.4))}
+  #vcursor.press{transform:scale(.78)}
+  #vcursor .ring{position:absolute;inset:-7px;border-radius:50%;border:2px solid var(--teal);opacity:0}
+  #vcursor.press .ring{animation:tap .45s ease}@keyframes tap{0%{opacity:.85;transform:scale(.4)}100%{opacity:0;transform:scale(1.7)}}
+
+  #endcard{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 38%,#16386a,#0b2545 70%);opacity:0;pointer-events:none;transition:opacity .9s}
+  #endcard.show{opacity:1}
+  #endcard .ec-logo{width:96px;height:96px;border-radius:26px;background:linear-gradient(135deg,var(--teal),var(--teal-2));display:grid;place-items:center;box-shadow:0 18px 50px rgba(0,0,0,.4);transform:scale(.7) translateY(16px);opacity:0;transition:.8s cubic-bezier(.2,.8,.2,1) .2s}
+  #endcard.show .ec-logo{transform:none;opacity:1}#endcard .ec-logo svg{width:52px;height:52px}
+  #endcard .ec-name{font-size:46px;font-weight:800;letter-spacing:1px;color:#fff;transform:translateY(18px);opacity:0;transition:.8s cubic-bezier(.2,.8,.2,1) .38s}
+  #endcard .ec-name .ac{color:var(--gold)}#endcard.show .ec-name{transform:none;opacity:1}
+  #endcard .ec-line{width:0;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);transition:width .9s ease .6s}#endcard.show .ec-line{width:240px}
+  #endcard .ec-tag{font-size:14px;color:#bcd0e8;letter-spacing:2px;opacity:0;transition:.8s .8s}#endcard.show .ec-tag{opacity:1}
+
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--navy);color:#fff;padding:10px 18px;border-radius:999px;font-size:12.5px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:.35s;z-index:95;pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.3" fill="#d4af37" stroke="none"/></svg></div>
+    <div class="htxt"><h1>SNS自動運用エージェント</h1><p>毎日のInstagram投稿を、提案から予約まで自動で</p></div>
+    <span class="badge-brand">ほくジョブ / 応援看護師サポート</span>
+    <button class="replay" id="replayBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>もう一度</button>
+  </header>
+
+  <div class="caption busy" id="caption">
+    <div class="cnum" id="cap-num">1</div>
+    <div class="ctxt"><b id="cap-title">投稿カレンダーで一元管理</b><span id="cap-sub">週1が限界だった投稿を、毎日へ</span></div>
+    <div class="spin"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg></div>
+  </div>
+
+  <div class="camviewport" id="camviewport">
+    <div class="camscene" id="camscene">
+      <div class="stage">
+        <div class="card" id="card-cal">
+          <h2><span class="dot"></span>投稿カレンダー</h2>
+          <div class="cal">
+            <div class="cal-head"><b>2026年 6月</b><span id="cal-status">週1ペース</span></div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-legend"><span><i style="background:var(--muted)"></i>投稿済み</span><span><i style="background:var(--ig)"></i>予約済み</span><span><i style="background:#fff;border:1px solid var(--teal)"></i>本日</span></div>
+            <div class="cal-note" id="cal-note">これまでは手作業で週1回。AIが毎日分の投稿を用意して予約できます。</div>
+          </div>
+        </div>
+
+        <div class="card" id="card-ed">
+          <div class="ed-head"><span class="dot"></span><span class="ed-title" id="ed-title">投稿を選ぶ</span><span class="ed-step" id="ed-step"></span></div>
+          <div class="ed-body">
+            <div class="screen show" id="screen-select">
+              <div class="ai-say"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1c8c8c" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5l3 2"/></svg>過去の投稿を分析：<b>リゾート特集・条件訴求（家賃0円/月給）</b>が伸びる傾向。沿って提案します</div>
+              <div class="ideas" id="ideas">
+                <div class="idea" data-i="0"><span class="trend">伸び◎</span><div class="it">北海道リゾート特集</div><div class="ib">働く×旅する。保存されやすい王道</div></div>
+                <div class="idea" data-i="1"><span class="trend">伸び◎</span><div class="it">家賃0円・寮完備の働き方</div><div class="ib">お金事情。条件で惹きつける</div></div>
+                <div class="idea" data-i="2"><div class="it">先輩ナースの1日に密着</div><div class="ib">スタッフ紹介。共感されやすい</div></div>
+                <div class="idea" data-i="3"><div class="it">#応援看護師 募集スタート</div><div class="ib">募集告知。リーチ拡大</div></div>
+              </div>
+            </div>
+
+            <div class="screen" id="screen-edit">
+              <div class="edit-grid">
+                <div>
+                  <div class="esec" id="sec-gen"><h4><span class="num">1</span>画像の生成</h4>
+                    <div class="regen"><span class="ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1c8c8c" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg><span id="gen-style">スタイル：リゾート特集</span></span><button class="btn-s" id="regenBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>別テイストでやり直す</button></div>
+                  </div>
+                  <div class="esec" id="sec-text"><h4><span class="num">2</span>画像の中の文章を編集</h4><div id="text-fields"></div></div>
+                  <div class="esec" id="sec-color"><h4><span class="num">3</span>カラー（箇所ごとに調整）</h4>
+                    <div class="part-tabs"><span class="ptab on" data-p="accent">アクセント</span><span class="ptab" data-p="bg">背景</span><span class="ptab" data-p="ink">見出し文字</span></div>
+                    <div class="palette" id="palette"></div>
+                    <div style="font-size:10px;color:var(--muted);font-weight:700;margin:9px 0 5px">フォント</div>
+                    <div class="fchips"><span class="fchip" data-f="gothic">ゴシック</span><span class="fchip" data-f="round">丸ゴシック</span><span class="fchip" data-f="mincho">明朝</span></div>
+                  </div>
+                  <div class="esec" id="sec-cap"><h4><span class="num">4</span>キャプション（本文・ハッシュタグ）</h4><div class="capbox" id="capbox"></div></div>
+                  <button class="book-btn" id="bookBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg>投稿日を選んで予約</button>
+                  <div class="book-hint" id="book-hint">カレンダーで投稿日を選びます</div>
+                </div>
+
+                <div class="preview-wrap" id="preview-region">
+                  <div class="igframe">
+                    <div class="igbar"><div class="igav"><i></i></div><b>hokkaido_hokujob</b><span class="more">···</span></div>
+                    <div class="igview"><div class="igtrack" id="igtrack"></div><div class="igcount" id="igcount">1/4</div>
+                      <div class="gen-ov" id="gen-ov"><div class="gl" id="gen-label">画像を生成しています…</div><div class="genprog"><i id="genbar"></i></div></div>
+                    </div>
+                    <div class="igdots" id="igdots"></div>
+                    <div class="igcap" id="igcap-prev"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="endcard">
+  <div class="ec-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.3" fill="#d4af37" stroke="none"/></svg></div>
+  <div class="ec-name">Social <span class="ac">Agent</span></div>
+  <div class="ec-line"></div>
+  <div class="ec-tag">ほくジョブ ／ 応援看護師サポート</div>
+</div>
+
+<div id="vcursor"><svg width="28" height="28" viewBox="0 0 24 24" fill="#0b2545" stroke="#fff" stroke-width="1.2"><path d="M5 3l15 9-6.5 1.5L11 21z"/></svg><div class="ring"></div></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  let token=0, tpl='A';
+  const cursor=$('#vcursor'), vp=$('#camviewport'), scene=$('#camscene');
+
+  function sceneCoords(el){let x=0,y=0,n=el;while(n&&n!==scene){x+=n.offsetLeft;y+=n.offsetTop;n=n.offsetParent;}return{x,y,w:el.offsetWidth,h:el.offsetHeight};}
+  function applyCam(tx,ty,s){scene.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';}
+  function cameraFit(){const vw=vp.clientWidth,vh=vp.clientHeight,sw=scene.offsetWidth,sh=scene.offsetHeight;const s=Math.min(vw/sw,vh/sh)*0.985;applyCam((vw-sw*s)/2,(vh-sh*s)/2,s);}
+  function zoomTo(el,scale,bias){const c=sceneCoords(el),vw=vp.clientWidth,vh=vp.clientHeight;const cx=c.x+c.w/2,cy=c.y+c.h/2;applyCam(vw/2-cx*scale,vh*(bias||0.5)-cy*scale,scale);}
+  function moveCursor(el){const r=el.getBoundingClientRect();cursor.style.left=(r.left+r.width*0.5)+'px';cursor.style.top=(r.top+r.height*0.55)+'px';}
+  async function clickEl(el){moveCursor(el);await sleep(620);moveCursor(el);await sleep(180);cursor.classList.add('press');el.classList.add('pressed');await sleep(400);cursor.classList.remove('press');await sleep(150);el.classList.remove('pressed');}
+  function setCap(num,title,sub,opts){opts=opts||{};$('#cap-num').textContent=num;$('#cap-title').textContent=title;$('#cap-sub').textContent=sub;const c=$('#caption');c.classList.toggle('busy',!opts.done);c.classList.toggle('done-state',!!opts.done);}
+  function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+  function litSec(id){$$('.esec').forEach(e=>e.classList.toggle('lit',e.id===id));}
+
+  const POSTED=[2,9,16];
+  function buildCal(){const g=$('#cal-grid');g.innerHTML='';['日','月','火','水','木','金','土'].forEach((w,i)=>{const e=document.createElement('div');e.className='wd'+(i===0?' sun':i===6?' sat':'');e.textContent=w;g.appendChild(e);});const b=document.createElement('div');b.className='day blank';g.appendChild(b);for(let d=1;d<=30;d++){const e=document.createElement('div');e.className='day';e.dataset.d=d;e.innerHTML='<span>'+d+'</span><span class="pdot"></span>';if(POSTED.includes(d))e.classList.add('posted');if(d===18)e.classList.add('today');g.appendChild(e);}}
+  function dayEl(d){return $('#cal-grid .day[data-d="'+d+'"]');}
+
+  const MASCOT='<svg viewBox="0 0 110 130" width="92"><g><ellipse cx="55" cy="126" rx="30" ry="6" fill="rgba(0,0,0,.12)"/><path d="M28 128 q0-42 27-42 t27 42 z" fill="#ef7aa3"/><path d="M44 90 l11 10 11-10 -3 -8 h-16 z" fill="#fff"/><rect x="52" y="92" width="6" height="20" fill="#e35f8e"/><path d="M24 96 q-10 8 -6 26 l9 -3 q-4-12 5-18 z" fill="#ef7aa3"/><circle cx="22" cy="118" r="6" fill="#ffe0c2"/><circle cx="55" cy="52" r="22" fill="#ffe0c2"/><path d="M33 48 q0-26 22-26 t22 26 q0-14 -22-14 t-22 14z" fill="#5a3b2e"/><path d="M37 36 h36 l-4 -9 h-28 z" fill="#fff"/><rect x="51" y="28" width="8" height="3" fill="#ef7aa3"/><rect x="54" y="25" width="2" height="9" fill="#ef7aa3"/><circle cx="47" cy="54" r="2.4" fill="#3a2a22"/><circle cx="63" cy="54" r="2.4" fill="#3a2a22"/><path d="M49 61 q6 5 12 0" stroke="#3a2a22" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="42" cy="59" r="3" fill="#ffb3c8" opacity=".7"/><circle cx="68" cy="59" r="3" fill="#ffb3c8" opacity=".7"/></g></svg>';
+  const HOKMAP='<svg class="hokmap" width="120" height="100" viewBox="0 0 120 100" fill="#fff"><path d="M20 40 l18 -14 22 4 12 -14 20 8 8 18 -10 12 8 16 -16 10 -18 -8 -10 8 -16 -10 z"/></svg>';
+  function STARS(c){let h='';const pos=[[16,52],[270,44],[250,150],[24,150],[150,30]];const cc=c||'#fff';pos.forEach((p,i)=>{const sz=i%2?9:13;h+='<svg class="star" style="left:'+p[0]+'px;top:'+p[1]+'px" width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="'+cc+'"><path d="M12 2l2.4 6.5L21 9l-5 4 1.5 6.5L12 16l-5.5 3.5L8 13 3 9l6.6-.5z"/></svg>';});return h;}
+  const PHOTO={sea:'assets/ph1015.jpg',hill:'assets/ph1018.jpg',town:'assets/ph1043.jpg',falls:'assets/ph1039.jpg'};
+  function scenic(kind){ return '<img class="layer" src="'+(PHOTO[kind]||PHOTO.sea)+'" alt="">'; }
+  const LINE={house:'<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><rect x="10" y="14" width="4" height="6"/></svg>',coin:'<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M9 9l3 4 3-4M12 13v4M9.5 15h5"/></svg>',phone:'<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke-width="1.7"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M9 14h6m0 0l-2-2m2 2l-2 2"/></svg>',star:'<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>'};
+  const ACCT='<div class="acct"><span class="lg"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></span>@hokkaido_hokujob</div>';
+
+  let TPL={
+    A:[
+      {kind:'sea', ribbon:'リゾート地 特集', sublabel:'北海道 × 応援ナース', ttl:'働く×旅する、\n<span class="em">新しいナースのカタチ</span>', sub:'〜自由な働き方、はじめませんか〜', mascot:true, badge:'夏季限定', swipe:true, map:true},
+      {kind:'hill', ribbon:'お金事情 ①', ttl:'住まいの不安、\n<span class="em">ぜんぶ0円。</span>', points:[['家賃','0円'],['水道・光熱費','0円'],['家具・家電','付き'],['即入居','OK']], mascot:false},
+      {kind:'town', ribbon:'お金事情 ②', ttl:'お給料も、\n<span class="em">しっかり。</span>', points:[['月給','55万〜'],['週払い','OK'],['前借り','相談可'],['交通費','全額']], mascot:false},
+      {kind:'falls', ribbon:'募集要項', ttl:'#応援看護師\n<span class="em">募集スタート</span>', steps:['プロフィールからDM','希望をヒアリング','ピッタリのお仕事を紹介'], mascot:true, swipe:false}
+    ],
+    B:[
+      {tag:'NEW', ttl:'新しい働き方、\n<span class="em mark">はじめよう。</span>', sub:'北海道トラベルナース／応援ナース', ill:'star', dots:true},
+      {tag:'お金事情①', ttl:'住まいは<span class="em">完全0円</span>', huge:'0', hugeU:'円', points:['家賃・敷金礼金なし','水道光熱費も無料','家具家電付きですぐ入居'], ill:'house', dots:true},
+      {tag:'お金事情②', ttl:'お給料も<span class="em">しっかり</span>', huge:'55', hugeU:'万円〜', points:['週払いOK／前借り相談可','交通費は全額支給','賞与・各種手当あり'], ill:'coin', dots:true},
+      {tag:'募集中', ttl:'#応援看護師\n<span class="em">募集スタート</span>', sub:'プロフィールのDMから\nお気軽にご相談ください →', ill:'phone', dots:true}
+    ]
+  };
+  const TEXTLABELS={A:['表紙のキャッチ','住まいの見出し','給与の見出し','募集メッセージ'],B:['表紙のキャッチ','住まいの見出し','給与の見出し','募集メッセージ']};
+
+  function ptsHTML(points){return '<div class="points">'+points.map(p=>'<div class="pt"><span class="ck">◎</span>'+p[0]+'<span class="nm">'+p[1]+'</span></div>').join('')+'</div>';}
+  function stepsHTML(steps){return '<div class="steps">'+steps.map((s,i)=>'<div class="stp"><span class="no">'+(i+1)+'</span>'+s+'</div>').join('')+'</div>';}
+  function ptsBHTML(points){return '<div class="ptB">'+points.map(p=>'<div class="ptb"><span class="ck">✓</span>'+p+'</div>').join('')+'</div>';}
+
+  function slideHTML(s){
+    if(tpl==='A'){
+      let c='<div class="content">';
+      c+='<div class="ribbon">'+s.ribbon+'</div>';
+      if(s.sublabel) c+='<div class="sublabel">'+s.sublabel+'</div>';
+      if(s.ttl) c+='<div class="ttl">'+s.ttl+'</div>';
+      if(s.sub) c+='<div class="sub">'+s.sub+'</div>';
+      if(s.points) c+=ptsHTML(s.points);
+      if(s.steps) c+=stepsHTML(s.steps);
+      c+='</div>';
+      return scenic(s.kind)+(s.map?HOKMAP.replace('class="hokmap"','class="hokmap" style="right:10px;top:120px"'):'')+'<div class="scrim"></div>'+STARS('#fff')+c
+        +(s.mascot?'<div class="mascot">'+MASCOT+'</div>':'')+(s.badge?'<div class="badge">'+s.badge+'</div>':'')+(s.swipe?'<div class="swipe">SWIPE →</div>':'')+ACCT;
+    } else {
+      let dots='';if(s.dots){const cols=['#f0794b','#3fa9d1','#ffcf3f','#ef7aa3','#1c8c8c'];dots='<div class="dotsbg">';for(let i=0;i<10;i++){const sz=6+(i%3)*3;dots+='<span style="left:'+(8+i*30)+'px;top:'+(10+(i*53%270))+'px;width:'+sz+'px;height:'+sz+'px;background:'+cols[i%5]+'"></span>';}dots+='</div>';}
+      let c='<div class="content"><span class="tag2">'+s.tag+'</span>';
+      if(s.ttl) c+='<div class="ttl">'+s.ttl+'</div>';
+      if(s.huge) c+='<div class="hl"><span class="huge">'+s.huge+'<span class="u">'+s.hugeU+'</span></span></div>';
+      if(s.points) c+=ptsBHTML(s.points);
+      if(s.sub) c+='<div class="sub" style="white-space:pre-line">'+s.sub+'</div>';
+      c+='</div>';
+      return dots+(s.ill?'<div class="ill">'+LINE[s.ill]+'</div>':'')+c+ACCT;
+    }
+  }
+  function renderSlides(){const t=$('#igtrack');t.innerHTML='';const dots=$('#igdots');dots.innerHTML='';TPL[tpl].forEach((s,i)=>{const el=document.createElement('div');el.className='slide t'+tpl;el.innerHTML=slideHTML(s);t.appendChild(el);const d=document.createElement('div');d.className='d'+(i===0?' on':'');dots.appendChild(d);});goSlide(0);applyAllColors();}
+  function buildTextFields(){const f=$('#text-fields');f.innerHTML='';TPL[tpl].forEach((s,i)=>{const plain=(s.ttl||'').replace(/<[^>]+>/g,'').replace(/\n/g,' ');const e=document.createElement('div');e.className='tfield'+(i===0?' active':'');e.dataset.i=i;e.innerHTML='<span class="sn">'+(i+1)+'</span><span class="tv">'+(plain||TEXTLABELS[tpl][i])+'</span>';f.appendChild(e);});}
+  function goSlide(i){$('#igtrack').style.transform='translateX(-'+(i*300)+'px)';$('#igcount').textContent=(i+1)+'/4';$$('#igdots .d').forEach((d,j)=>d.classList.toggle('on',j===i));$$('#text-fields .tfield').forEach((s,j)=>s.classList.toggle('active',j===i));}
+
+  const PALETTE=['#ef7aa3','#3fa9d1','#f0794b','#ffcf3f','#1c8c8c','#0b2545','#ffffff','#2a2a2a'];
+  function buildPalette(){const p=$('#palette');p.innerHTML='';PALETTE.forEach(c=>{const e=document.createElement('span');e.className='pc';e.dataset.c=c;e.style.background=c;p.appendChild(e);});}
+  const colors={accent:'#ef7aa3',bg:'#fffdf6',ink:'#2a2a2a'};let curFont='inherit';
+  const fonts={gothic:'inherit',round:'"Hiragino Maru Gothic ProN","Rounded Mplus 1c",sans-serif',mincho:'"Hiragino Mincho ProN","Yu Mincho",serif'};
+  function applyAllColors(){$$('.slide').forEach(s=>{s.style.setProperty('--accent',colors.accent);s.style.setProperty('--bg',colors.bg);s.style.setProperty('--ink',colors.ink);s.style.setProperty('--hf',curFont);});}
+
+  let CAPTION='北海道特化のトラベルナース🏥 働きながら旅するように。月給55万・寮費0円で新しい一歩を。';
+  const HASH='#応援看護師 #北海道 #トラベルナース #寮完備 #月給55万 #ナース転職';
+  function renderCaption(){$('#igcap-prev').innerHTML='<b>hokkaido_hokujob</b> '+CAPTION+' <span class="tag">'+HASH+'</span>';$('#capbox').innerHTML=CAPTION+' <span class="tag">'+HASH+'</span>';}
+
+  async function run(){
+    const my=++token; reset(); await sleep(60); cameraFit();
+    setCap('1','投稿カレンダーで一元管理','週1が限界だった投稿を、毎日へ');
+    await sleep(700); zoomTo($('#card-cal'),1.35,0.5); await sleep(2000); if(my!==token)return;
+    cameraFit(); await sleep(600); if(my!==token)return;
+
+    setCap('2','AIが投稿案を提案','過去の傾向を理解して、毎日のネタを用意');
+    $('#ed-step').textContent='STEP 1'; zoomTo($('#card-ed'),1.25,0.45); await sleep(600);
+    for(const el of $$('.idea')){el.classList.add('in');await sleep(360);if(my!==token)return;}
+    await sleep(600); const pick=$('.idea[data-i="0"]'); await clickEl(pick); pick.classList.add('picked'); await sleep(900); if(my!==token)return;
+
+    setCap('3','編集画面に切り替わりました','選んだ案から複数枚の画像を生成');
+    $('#screen-select').classList.remove('show'); $('#screen-edit').classList.add('show');
+    $('#ed-title').textContent='投稿を編集'; $('#ed-step').textContent='STEP 2';
+    tpl='A'; renderSlides(); buildTextFields(); buildPalette(); renderCaption();
+    await sleep(400); zoomTo($('#preview-region'),1.7,0.5); await sleep(400);
+    $('#gen-label').textContent='画像を生成しています…'; $('#gen-ov').classList.add('show'); $('#genbar').style.width='100%'; await sleep(1700); if(my!==token)return;
+    $('#gen-ov').classList.remove('show');
+    for(let i=1;i<4;i++){await sleep(1000);if(my!==token)return;goSlide(i);} await sleep(900); goSlide(0); await sleep(500); if(my!==token)return;
+
+    setCap('4','別テイストでやり直し','「リゾート特集」→「条件ポップ」へガラッと変更');
+    litSec('sec-gen'); zoomTo($('#card-ed'),1.16,0.42); await sleep(800);
+    await clickEl($('#regenBtn')); if(my!==token)return;
+    $('#gen-label').textContent='別テイストを生成中…'; $('#genbar').style.width='0'; $('#gen-ov').classList.add('show'); requestAnimationFrame(()=>$('#genbar').style.width='100%');
+    await sleep(1700); if(my!==token)return;
+    tpl='B'; colors.accent='#f0794b'; colors.bg='#fffdf6'; colors.ink='#2a2a2a'; renderSlides(); buildTextFields(); $('#gen-style').textContent='スタイル：条件ポップ';
+    $('#gen-ov').classList.remove('show'); toast('別テイスト（条件ポップ）に切替'); await sleep(700);
+    zoomTo($('#preview-region'),1.7,0.5);
+    for(let i=1;i<4;i++){await sleep(950);if(my!==token)return;goSlide(i);} await sleep(800); goSlide(0); await sleep(600); if(my!==token)return;
+
+    setCap('5','画像の中の文章を編集','見出しのコピーをその場で調整');
+    litSec('sec-text'); zoomTo($('#card-ed'),1.16,0.45); goSlide(2); await sleep(800); if(my!==token)return;
+    const tf=$('#text-fields .tfield[data-i="2"]'); await clickEl(tf); tf.classList.add('active');
+    await sleep(700); TPL.B[2].huge='60'; TPL.B[2].ttl='お給料は<span class="em">業界トップ水準</span>'; tf.querySelector('.tv').textContent='お給料は業界トップ水準'; renderSlides(); goSlide(2);
+    $('#igtrack').classList.add('mk','flash'); await sleep(1400); if(my!==token)return; $('#igtrack').classList.remove('mk','flash');
+
+    setCap('6','カラーを箇所ごとに調整','アクセント・背景・見出しを個別に');
+    litSec('sec-color'); zoomTo($('#card-ed'),1.16,0.42); goSlide(1); await sleep(700); if(my!==token)return;
+    const tabA=$('.ptab[data-p="accent"]'); await clickEl(tabA); $$('.ptab').forEach(t=>t.classList.remove('on')); tabA.classList.add('on');
+    const pcSky=$('.pc[data-c="#3fa9d1"]'); await clickEl(pcSky); $$('.pc').forEach(p=>p.classList.remove('picked')); pcSky.classList.add('picked'); colors.accent='#3fa9d1'; applyAllColors(); $('#igtrack').classList.add('mk','flash'); await sleep(1200); if(my!==token)return; $('#igtrack').classList.remove('mk','flash');
+    const fR=$('.fchip[data-f="round"]'); await clickEl(fR); $$('.fchip').forEach(f=>f.classList.remove('picked')); fR.classList.add('picked'); curFont=fonts.round; applyAllColors(); await sleep(1000); if(my!==token)return;
+
+    setCap('7','キャプションも編集','本文とハッシュタグを仕上げる');
+    litSec('sec-cap'); zoomTo($('#sec-cap'),1.7,0.5); $('#capbox').classList.add('editing'); await sleep(800); if(my!==token)return;
+    CAPTION='北海道特化のトラベルナース🏥 月給60万も可・寮費0円🌸 未経験から応援ナースデビュー！'; renderCaption();
+    $('#capbox').classList.add('mk','flash'); await sleep(1400); if(my!==token)return; $('#capbox').classList.remove('mk','flash','editing'); litSec('');
+
+    setCap('8','投稿日を選んで予約','選んだ日付に、この投稿が登録されます');
+    $('#ed-step').textContent='STEP 3'; await clickEl($('#bookBtn')); $('#book-hint').textContent='カレンダーで投稿日をクリック…'; await sleep(400);
+    zoomTo($('#card-cal'),1.35,0.5); await sleep(1200); if(my!==token)return;
+    const d19=dayEl(19); d19.classList.add('pick'); await clickEl(d19); await sleep(250); d19.classList.remove('pick'); d19.classList.add('booked','pop'); toast('6月19日に投稿を予約しました');
+    $('#cal-status').textContent='1件 予約済み'; $('#cal-note').textContent='選んだ日に、この投稿が予約されました。毎日分も同じ手順で量産できます。';
+    await sleep(1700); if(my!==token)return;
+
+    setCap('9','投稿を予約しました','この手順の繰り返しで、毎日の発信が回ります',{done:true});
+    cameraFit(); await sleep(1100); if(my!==token)return;
+    $('#endcard').classList.add('show'); cursor.style.left='-100px';
+  }
+
+  function reset(){
+    $('#endcard').classList.remove('show'); cursor.style.left='-100px'; cursor.style.top='-100px';
+    tpl='A'; colors.accent='#ef7aa3'; colors.bg='#fffdf6'; colors.ink='#2a2a2a'; curFont='inherit';
+    TPL.B[2].huge='55'; TPL.B[2].ttl='お給料も<span class="em">しっかり</span>';
+    CAPTION='北海道特化のトラベルナース🏥 働きながら旅するように。月給55万・寮費0円で新しい一歩を。';
+    buildCal();
+    $('#screen-edit').classList.remove('show'); $('#screen-select').classList.add('show');
+    $('#ed-title').textContent='投稿を選ぶ'; $('#ed-step').textContent=''; $('#gen-style').textContent='スタイル：リゾート特集';
+    $$('.idea').forEach(e=>e.classList.remove('in','picked')); litSec('');
+    $$('.ptab').forEach(t=>t.classList.remove('on')); $('.ptab[data-p="accent"]').classList.add('on');
+    $$('.fchip').forEach(f=>f.classList.remove('picked'));
+    $('#gen-ov').classList.remove('show'); $('#genbar').style.width='0';
+    $('#book-hint').textContent='カレンダーで投稿日を選びます';
+    $('#cal-status').textContent='週1ペース'; $('#cal-note').textContent='これまでは手作業で週1回。AIが毎日分の投稿を用意して予約できます。';
+    $('#igtrack').innerHTML=''; $('#igdots').innerHTML=''; $('#text-fields').innerHTML=''; $('#palette').innerHTML=''; $('#capbox').innerHTML=''; $('#igcap-prev').innerHTML='';
+  }
+
+  window.addEventListener('resize',()=>{ if($('#caption').classList.contains('done-state')) cameraFit(); });
+  $('#replayBtn').addEventListener('click',function(){ run(); });
+  setTimeout(()=>{ cameraFit(); run(); },80);
+})();
+</script>
+</body>
+</html>
