@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>求人票作成エージェント</title>
+<style>
+  :root{
+    --navy:#0b2545; --navy-2:#13315c; --teal:#1c8c8c; --teal-2:#2bb0a8;
+    --gold:#d4af37; --paper:#ffffff; --ink2:#1b2733;
+    --muted:#6b7a8d; --line:#dfe7f1; --accent:#e2a23b; --green:#2a8f57;
+    --siteBlue:#1e6bb8; --siteBlueDk:#0f4e8a; --siteBg:#f4f8fc;
+    --sheetHead:#1d6f42; --sheetHead2:#2a8f57; --sheetRowAlt:#f6faf6; --sheetGrid:#cfd9d2;
+    --shadow:0 10px 30px rgba(11,37,69,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;overflow:hidden;height:100%}
+  body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;background:linear-gradient(160deg,#f4f8fd 0%,#e7eef8 100%);color:var(--ink2);-webkit-font-smoothing:antialiased}
+  .app{height:100vh;display:flex;flex-direction:column;padding:12px 16px;gap:9px}
+
+  header{display:flex;align-items:center;gap:12px;padding:9px 16px;background:linear-gradient(120deg,var(--navy),var(--navy-2));border-radius:13px;color:#fff;box-shadow:var(--shadow);position:relative;overflow:hidden;flex:0 0 auto}
+  header::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(212,175,55,.25),transparent 70%);pointer-events:none}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--teal);display:grid;place-items:center;flex:0 0 auto}
+  .logo svg{width:20px;height:20px}
+  .htxt h1{margin:0;font-size:16px}.htxt p{margin:0;font-size:11px;color:#bcd0e8}
+  .badge-brand{margin-left:auto;font-size:11px;color:#cfe0f2;border:1px solid rgba(255,255,255,.25);padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .replay{position:relative;z-index:2;background:rgba(255,255,255,.12);border:0;color:#cfe0f2;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:8px;margin-left:12px}
+  .replay:hover{background:rgba(255,255,255,.22);color:#fff}
+
+  .caption{display:flex;align-items:center;gap:12px;padding:9px 15px;border-radius:12px;color:#fff;flex:0 0 auto;background:linear-gradient(120deg,var(--teal),var(--teal-2));box-shadow:0 6px 18px rgba(28,140,140,.28);transition:.4s}
+  .caption .cnum{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800;font-size:15px;flex:0 0 auto}
+  .caption .ctxt b{font-size:14px;display:block;line-height:1.25}.caption .ctxt span{font-size:11.5px;color:#e9fbf9}
+  .caption .spin{margin-left:auto;display:none}.caption.busy .spin{display:block}
+  .caption .spin svg{animation:spin 1.1s linear infinite;display:block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .caption.done-state{background:linear-gradient(120deg,var(--navy),var(--navy-2))}
+
+  /* 16:9 カメラビューポート */
+  .camviewport{flex:1 1 auto;position:relative;overflow:hidden;border-radius:14px;border:1px solid var(--line);background:#e9f0f9;min-height:0;perspective:1600px}
+  .camscene{position:absolute;top:0;left:0;width:1240px;transform-origin:0 0;transition:transform 1s cubic-bezier(.4,.1,.2,1);padding:18px}
+  .stage{display:block;position:relative;min-height:760px}
+
+  /* ===== ページめくりアニメ：各viewを絶対重ね＋スライド/回転で遷移 ===== */
+  .view{
+    position:absolute;top:0;left:0;width:1204px;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transform:translateX(110px) rotateY(-7deg) scale(.985);
+    transform-origin:left center;
+    transition:opacity .55s ease, transform .7s cubic-bezier(.45,.05,.25,1), visibility 0s linear .7s;
+    filter:drop-shadow(0 16px 30px rgba(11,37,69,.12));
+  }
+  .view.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0) rotateY(0) scale(1);transition:opacity .55s ease .12s, transform .7s cubic-bezier(.45,.05,.25,1), visibility 0s linear 0s}
+  .view.leave{opacity:0;visibility:visible;transform:translateX(-110px) rotateY(7deg) scale(.985);pointer-events:none;transition:opacity .5s ease, transform .6s cubic-bezier(.45,.05,.25,1), visibility 0s linear .6s}
+
+  /* ページタブ：「今何ページにいるか」を常時表示 */
+  .pagetabs{display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:1204px;margin-bottom:10px;box-shadow:0 4px 14px rgba(11,37,69,.06)}
+  .ptab{flex:1;padding:8px 13px;font-size:11.5px;font-weight:700;color:var(--muted);background:#f4f8fd;border-right:1px solid var(--line);display:flex;align-items:center;gap:8px;transition:.4s;border-bottom:3px solid transparent}
+  .ptab:last-child{border-right:0}
+  .ptab.on{background:#fff;color:var(--navy);border-bottom-color:var(--teal)}
+  .ptab .ptnum{width:19px;height:19px;border-radius:50%;background:var(--line);color:var(--muted);font-size:9px;display:grid;place-items:center;font-weight:800;transition:.4s;flex:0 0 auto}
+  .ptab.on .ptnum{background:var(--teal);color:#fff}
+  .ptab .ptarrow{margin-left:auto;font-size:11px;color:var(--muted);opacity:.6}
+
+  .card{background:#fff;border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--line)}
+  .card h2{font-size:12.5px;margin:0;padding:11px 15px;border-bottom:1px solid var(--line);color:var(--navy);display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--teal)}
+
+  /* ===== ① 一覧画面（既存ベース、軽微調整） ===== */
+  .ss-wrap{background:#fff;border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--line);overflow:hidden}
+  .ss-tabbar{display:flex;align-items:center;background:#f4f6f5;border-bottom:1px solid var(--sheetGrid);padding:6px 11px;gap:8px;font-size:10.5px;color:#5a6c5e}
+  .ss-tabbar .ss-name{font-weight:800;color:#1d3a25;font-size:11.5px;display:flex;align-items:center;gap:7px}
+  .ss-tabbar .ss-name svg{width:14px;height:14px}
+  .ss-tabbar .ss-meta{margin-left:auto;display:flex;gap:14px;color:#6b7a8d;font-size:10px}
+  .ss-tabbar .ss-meta b{color:var(--sheetHead);font-weight:700}
+  .ss-toolbar{display:flex;align-items:center;gap:6px;padding:5px 10px;background:#eef2ee;border-bottom:1px solid var(--sheetGrid);font-size:10.5px;color:#3a4a3e}
+  .ss-tool{padding:3px 8px;border-radius:5px;background:#fff;border:1px solid #d6dfd8;font-size:10px;color:#3a4a3e;display:inline-flex;align-items:center;gap:4px}
+  .ss-tool.tsel{background:#e4f0e8;border-color:#9bbfa6;color:#1d6f42;font-weight:700}
+  .ss-sheet-tabs{display:flex;align-items:center;gap:0;padding:0 10px;background:#f4f6f5;border-top:1px solid var(--sheetGrid);border-bottom:1px solid var(--sheetGrid);font-size:10.5px}
+  .ss-stab{padding:6px 14px;color:#6b7a8d;border-right:1px solid var(--sheetGrid);cursor:default}
+  .ss-stab.on{background:#fff;color:#1d3a25;font-weight:700;border-top:2px solid var(--sheetHead);margin-top:-1px}
+  .ss-table-wrap{position:relative;overflow:hidden}
+  .ss-table{width:1088px;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:11px;background:#fff}
+  .ss-table col.c-no{width:34px}
+  .ss-table col.c-job{width:240px}
+  .ss-table col.c-hos{width:148px}
+  .ss-table col.c-area{width:66px}
+  .ss-table col.c-pay{width:96px}
+  .ss-table col.c-term{width:64px}
+  .ss-table col.c-stat{width:72px}
+  .ss-table col.c-pers{width:60px}
+  .ss-table col.c-date{width:76px}
+  .ss-table col.c-act{width:108px}
+  .cell-job{font-weight:700;color:var(--navy);font-size:11px;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
+  .cell-job .jic{width:18px;height:18px;border-radius:4px;background:#e6efe9;display:grid;place-items:center;flex:0 0 auto;color:var(--sheetHead)}
+  .cell-job .jic svg{width:11px;height:11px}
+  .cell-job .jt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cell-hos{font-size:10.5px;color:#3a4a3e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cell-pay{font-weight:800;color:var(--navy);font-size:10.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cell-term{font-size:10.5px;color:#3a4a3e;text-align:center}
+  .cell-stat{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px;display:inline-block;white-space:nowrap}
+  .cell-stat.s-open{color:var(--teal);background:rgba(28,140,140,.1);border:1px solid rgba(28,140,140,.4)}
+  .cell-stat.s-warm{color:#a9772a;background:rgba(226,162,59,.12);border:1px solid rgba(226,162,59,.4)}
+  .cell-stat.s-rest{color:#7c89a0;background:#eef2f7;border:1px solid #d8e0ec}
+  .ss-table thead th{position:sticky;top:0;background:linear-gradient(180deg,#246d3f,#1d6f42);color:#fff;font-weight:700;font-size:10.5px;text-align:left;padding:7px 8px;border:1px solid #195836;white-space:nowrap;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis}
+  .ss-table thead th .sortc{margin-left:5px;opacity:.6;font-size:8px}
+  .ss-table thead .rowhead{text-align:center;background:#1a5733;color:#cfe6d6;font-size:10px}
+  .ss-table tbody td{border:1px solid var(--sheetGrid);padding:7px 8px;vertical-align:middle;line-height:1.4;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ss-table tbody tr:nth-child(even) td{background:var(--sheetRowAlt)}
+  .ss-table tbody tr td.rowidx{background:#eef2ee;color:#6b7a8d;font-size:9.5px;text-align:center;font-weight:700;padding:3px 4px}
+  .ss-table tbody tr:hover td:not(.rowidx){background:#e9f3ec}
+  .ss-table tbody tr.row-active td:not(.rowidx){background:rgba(28,140,140,.13);box-shadow:inset 0 0 0 1.5px var(--teal)}
+  .cli-name{font-weight:700;color:var(--navy);font-size:11px;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
+  .cli-name span.cname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cli-name .cic{width:18px;height:18px;border-radius:4px;background:#e6efe9;display:grid;place-items:center;flex:0 0 auto;color:var(--sheetHead)}
+  .cli-name .cic svg{width:11px;height:11px}
+  .cell-area{font-size:10.5px;color:#3a4a3e}
+  .cell-pic{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:5px;display:inline-block;white-space:nowrap}
+  .cell-pic.s-act{color:var(--teal);background:rgba(28,140,140,.1);border:1px solid rgba(28,140,140,.4)}
+  .cell-pic.s-warm{color:#a9772a;background:rgba(226,162,59,.12);border:1px solid rgba(226,162,59,.4)}
+  .cell-pic.s-rest{color:#7c89a0;background:#eef2f7;border:1px solid #d8e0ec}
+  .cell-pers{font-size:10.5px;color:#3a4a3e}
+  .cell-jobs{text-align:center;font-weight:700;color:var(--sheetHead);font-size:11.5px}
+  .cell-memo{font-size:10px;color:#4a5a5e}
+  .cell-task{font-size:10px;color:#4a5a5e}
+  .cell-task .due{display:inline-block;font-size:9px;font-weight:700;color:var(--accent);background:rgba(226,162,59,.12);padding:1px 6px;border-radius:4px;margin-right:5px}
+  .cell-date{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cell-act{display:flex;gap:3px;flex-wrap:nowrap}
+  .act-ic{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:#fff;color:#5a6a7a;display:grid;place-items:center;cursor:default;transition:.15s}
+  .act-ic svg{width:11px;height:11px}
+  .act-ic:hover{background:#f4f8fd;color:var(--navy)}
+  .act-ic.pressed{transform:scale(.92)}
+  .ss-footer{display:flex;align-items:center;gap:14px;padding:6px 11px;font-size:9.5px;color:var(--muted);border-top:1px solid var(--sheetGrid);background:#f4f6f5}
+  .ss-footer b{color:var(--sheetHead);font-weight:700}
+  .ss-tip{margin-top:8px;font-size:10.5px;color:var(--muted);padding:7px 12px;background:#fbfdff;border:1px dashed var(--line);border-radius:9px;display:flex;align-items:center;gap:8px;line-height:1.5}
+  .ss-tip b{color:var(--navy)}
+
+  /* ===== ② 詳細画面：4枠ガッチリ ===== */
+  .detail-pageheader{background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px;box-shadow:0 4px 14px rgba(11,37,69,.06)}
+  .detail-pageheader .back-btn{font-size:11px;color:var(--navy);background:#f4f8fd;border:1px solid var(--line);padding:5px 11px;border-radius:7px;display:inline-flex;align-items:center;gap:5px;font-weight:700}
+  .detail-pageheader .dph-name{font-size:14.5px;font-weight:900;color:var(--navy);display:flex;align-items:center;gap:8px;margin-right:4px}
+  .detail-pageheader .dph-name .hic{width:24px;height:24px;border-radius:7px;background:var(--teal);display:grid;place-items:center}
+  .detail-pageheader .dph-name .hic svg{width:14px;height:14px}
+  .chip-meta{font-size:9.5px;font-weight:700;background:#fff;border:1px solid var(--line);color:var(--ink2);padding:3px 8px;border-radius:5px}
+  .chip-meta.s-act{color:var(--teal);background:rgba(28,140,140,.08);border-color:rgba(28,140,140,.35)}
+  .detail-pageheader .rec-id{margin-left:auto;font-size:10px;color:var(--muted);letter-spacing:.5px}
+  .detail-pageheader .rec-id .live{color:var(--teal);font-weight:700;background:rgba(28,140,140,.1);border:1px solid rgba(28,140,140,.35);padding:2px 8px;border-radius:5px;margin-left:6px}
+
+  .detail-grid{display:grid;grid-template-columns:560px 632px;gap:12px;align-items:start;width:1204px}
+  .detail-col{display:flex;flex-direction:column;gap:10px}
+
+  .frame{background:#fff;border:2px solid #d3dde9;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(11,37,69,.07);transition:.45s}
+  .frame.h-client{border-color:#a9c3e0}
+  .frame.h-task{border-color:#e6cc99}
+  .frame.h-memo{border-color:#d4af37}
+  .frame.h-job{border-color:#7fb8b3}
+  .frame.focused{box-shadow:0 0 0 3px rgba(28,140,140,.25), 0 10px 24px rgba(11,37,69,.12)}
+
+  .frame-hd{display:flex;align-items:center;gap:9px;padding:9px 13px;font-weight:800;color:#fff;font-size:12.5px;letter-spacing:.3px}
+  .frame.h-client .frame-hd{background:linear-gradient(120deg,#1e4d8a,#2a6bb3)}
+  .frame.h-task .frame-hd{background:linear-gradient(120deg,#b8841d,#d9a341)}
+  .frame.h-memo .frame-hd{background:linear-gradient(120deg,#8c6e1e,#b89540)}
+  .frame.h-job .frame-hd{background:linear-gradient(120deg,#1c8c8c,#2bb0a8)}
+  .frame-hd .fhi{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.2);display:grid;place-items:center;flex:0 0 auto}
+  .frame-hd .fhi svg{width:13px;height:13px}
+  .frame-hd .fhcount{margin-left:auto;font-size:10px;background:rgba(255,255,255,.22);padding:2px 8px;border-radius:999px;font-weight:700}
+  .frame-bd{padding:11px 13px}
+
+  /* クライアント情報 */
+  .ci-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 18px;font-size:11px}
+  .ci-grid .k{color:var(--muted);font-size:10px;margin-bottom:1px}
+  .ci-grid b{color:var(--ink2);font-weight:700;display:block;line-height:1.4}
+  .ci-divider{height:1px;background:linear-gradient(90deg,transparent,var(--line) 20%,var(--line) 80%,transparent);margin:11px 0 9px}
+  .ci-sublabel{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.5px;margin-bottom:6px}
+
+  /* メモ */
+  .memo-list{display:flex;flex-direction:column;gap:6px}
+  .memo-item{font-size:10.5px;background:#fffdf5;border:1px solid #f0e3c2;border-left:3px solid var(--gold);border-radius:8px;padding:6px 10px;color:#5d4a36;line-height:1.55;display:flex;gap:8px;align-items:flex-start}
+  .memo-item .mt{font-size:9px;color:#a9772a;white-space:nowrap;font-weight:800;flex:0 0 auto;padding-top:1px}
+  .memo-item.new{opacity:0;transform:translateY(6px);transition:.5s}
+  .memo-item.new.show{opacity:1;transform:none}
+  .memo-item.new b{color:#a9772a}
+
+  /* タスク */
+  .task-list{display:flex;flex-direction:column;gap:6px}
+  .task-item{display:flex;align-items:center;gap:9px;font-size:11px;background:#fffcf3;border:1px solid #ead8a8;border-radius:8px;padding:7px 11px;color:var(--ink2)}
+  .task-item .tcheck{width:14px;height:14px;border-radius:50%;border:2px solid #d9a341;flex:0 0 auto}
+  .task-item .tdue{font-size:9.5px;font-weight:800;color:#a9772a;background:rgba(226,162,59,.12);padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .task-item .ttxt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .task-item .towner{font-size:9.5px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:1px 7px;border-radius:5px;white-space:nowrap}
+
+  /* 求人情報 */
+  .job-list{display:flex;flex-direction:column;gap:6px}
+  .job-item{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:9px;padding:7px 10px;background:#fff;transition:.35s}
+  .job-item .jic{width:26px;height:26px;border-radius:7px;background:#e6f4f3;display:grid;place-items:center;flex:0 0 auto;color:var(--teal)}
+  .job-item .jic svg{width:13px;height:13px}
+  .job-item .jmeta{flex:1 1 auto;min-width:0}
+  .job-item .jmeta b{font-size:11.5px;color:var(--navy);font-weight:700;display:block;line-height:1.3}
+  .job-item .jmeta span{font-size:9.5px;color:var(--muted)}
+  .job-item .jpay{font-size:10.5px;font-weight:800;color:var(--navy);white-space:nowrap;flex:0 0 auto;transition:.4s}
+  .job-item .jstat{font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap;transition:.4s;flex:0 0 auto;margin-left:6px}
+  .jstat.s-open{color:var(--teal);background:rgba(28,140,140,.1);border:1px solid rgba(28,140,140,.35)}
+  .jstat.s-warm{color:#a9772a;background:rgba(226,162,59,.12);border:1px solid rgba(226,162,59,.4)}
+  .job-item.editing{border-color:var(--accent);box-shadow:0 0 0 2px rgba(226,162,59,.25)}
+
+  /* 求人情報の中：求人サイト風プレビュー */
+  .jobsite-preview-wrap{margin-top:12px;border:1px dashed #94c0bb;border-radius:11px;padding:10px 11px 11px;background:linear-gradient(160deg,#f4faf9,#eaf3f2);position:relative}
+  .jobsite-preview-wrap::before{content:"求人サイトでの見え方（プレビュー）";position:absolute;top:-9px;left:13px;font-size:9.5px;color:var(--teal);background:#fff;padding:2px 9px;border-radius:4px;font-weight:800;letter-spacing:.5px;border:1px dashed #94c0bb}
+  .jobsite-card{background:#fff;border:1px solid #d8e3ee;border-radius:9px;padding:11px 13px;box-shadow:0 4px 10px rgba(11,37,69,.05)}
+  .jobsite-card .jsc-pills{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+  .jobsite-card .jsc-pill{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:#eaf2fb;color:var(--siteBlueDk);border:1px solid #c8dcef;transition:.4s}
+  .jobsite-card .jsc-pill.warm{background:#fff4dd;color:#a9772a;border-color:#f0d8a4}
+  .jobsite-card .jsc-title{font-size:12.5px;font-weight:800;color:#0e2e54;line-height:1.4;margin:0 0 6px}
+  .jobsite-card .jsc-pay{font-size:17px;font-weight:900;color:var(--siteBlue);letter-spacing:.5px;line-height:1.2;transition:.4s}
+  .jobsite-card .jsc-pay .u{font-size:11px;color:var(--muted);font-weight:700;margin-left:2px}
+  .jobsite-card .jsc-row{font-size:10px;color:var(--ink2);margin:3px 0;display:flex;gap:6px;align-items:center}
+  .jobsite-card .jsc-row .k{color:var(--muted);width:48px;flex:0 0 auto;font-size:9.5px}
+  .jobsite-card .jsc-keep{font-size:9.5px;color:var(--muted);margin-top:7px;display:flex;align-items:center;gap:5px}
+  .jobsite-card .jsc-keep b{color:var(--siteBlue);font-weight:800}
+  .jobsite-card .jsc-cta{margin-top:8px;font-size:11px;font-weight:800;color:#fff;background:var(--siteBlue);border-radius:7px;padding:8px;text-align:center;letter-spacing:.5px}
+  .jobsite-preview-wrap .ps-note{margin-top:8px;font-size:9.5px;color:var(--muted);display:flex;align-items:center;gap:5px;line-height:1.4}
+
+  /* Job Agent 編集バー */
+  .editbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0;padding:0;background:transparent;border:0;border-radius:11px;opacity:0;max-height:0;overflow:hidden;transition:.5s}
+  .editbar.show{opacity:1;max-height:160px;margin-top:12px;padding:10px 13px;background:linear-gradient(160deg,#fff7e8,#fce8c8);border:1.5px solid #e9b86d}
+  .editbar .ebl{font-size:11.5px;color:#a9772a;font-weight:800;display:flex;align-items:center;gap:7px}
+  .edit-btn{font-size:12px;font-weight:800;padding:8px 14px;border-radius:9px;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;background:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(226,162,59,.4)}
+  .edit-btn.pressed{transform:scale(.94)}
+  .editbar .ebnote{font-size:9.5px;color:#a9772a;margin-left:auto}
+
+  .mk{border-radius:3px;padding:0 2px;transition:.4s}
+  .mk.fixed{background:rgba(28,140,140,.16);border-bottom:2px solid var(--teal)}
+  .mk.flash{animation:flash 1.4s ease}
+  @keyframes flash{0%{box-shadow:0 0 0 0 rgba(28,140,140,.6)}60%{box-shadow:0 0 0 10px rgba(28,140,140,0)}100%{box-shadow:0 0 0 0 rgba(28,140,140,0)}}
+
+  /* ===== ③ 同期画面 ===== */
+  .sync-card{padding:14px 18px 16px}
+  .dual{display:grid;grid-template-columns:1fr 168px 1fr;gap:0;align-items:stretch;margin-top:4px}
+  .dual .pane{padding:0}
+  .source-card{align-self:center;text-align:center;padding:13px 11px;border:2px solid var(--teal);border-radius:13px;background:linear-gradient(160deg,#fff,#f3fbfa);box-shadow:0 8px 22px rgba(28,140,140,.18);position:relative;z-index:3}
+  .source-card .sc-ic{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,var(--teal),var(--teal-2));display:grid;place-items:center;margin:0 auto 7px}
+  .source-card b{font-size:12.5px;color:var(--navy);display:block;line-height:1.3}
+  .source-card span{font-size:9.5px;color:var(--muted);display:block;line-height:1.3;margin-top:2px}
+  .source-card .src-id{font-size:9px;color:var(--teal);font-weight:700;margin-top:5px;letter-spacing:.5px;display:block}
+  .flow{position:relative}
+  .flow svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .flow path{fill:none;stroke:var(--teal);stroke-width:2.5;stroke-dasharray:8 7;stroke-dashoffset:200;opacity:0;transition:opacity .4s}
+  .flow.on path{opacity:.85;animation:dash 1s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:0}}
+
+  .out-card{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;opacity:0;transform:translateY(10px);transition:.55s;height:100%}
+  .out-card.in{opacity:1;transform:none}
+  .oc-head{font-size:11px;font-weight:800;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:7px}
+  .oc-head.site{background:linear-gradient(120deg,var(--siteBlue),var(--siteBlueDk))}
+  .oc-head.sheet{background:linear-gradient(120deg,#1d6f42,#2a8f57)}
+  .oc-head .badge-base{margin-left:auto;font-size:9px;font-weight:700;background:rgba(255,255,255,.22);padding:2px 7px;border-radius:5px}
+  .oc-body{padding:11px 12px}
+
+  .site-prev{background:var(--siteBg)}
+  .site-prev .sp-card{background:#fff;border:1px solid #d8e3ee;border-radius:9px;padding:11px 13px;box-shadow:0 4px 10px rgba(11,37,69,.05)}
+  .site-prev .sp-pills{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+  .site-prev .sp-pill{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:#eaf2fb;color:var(--siteBlueDk);border:1px solid #c8dcef;transition:.4s}
+  .site-prev .sp-pill.warm{background:#fff4dd;color:#a9772a;border-color:#f0d8a4}
+  .site-prev .sp-title{font-size:12.5px;font-weight:800;color:#0e2e54;line-height:1.4;margin:0 0 6px}
+  .site-prev .sp-pay{font-size:18px;font-weight:900;color:var(--siteBlue);transition:.4s}.site-prev .sp-pay .u{font-size:11px;color:var(--muted);font-weight:700}
+  .site-prev .sp-row{font-size:10px;color:var(--ink2);margin:3px 0;display:flex;gap:6px}
+  .site-prev .sp-row .k{color:var(--muted);width:46px;flex:0 0 auto}
+  .site-prev .sp-cta{margin-top:8px;text-align:center;font-size:11px;font-weight:800;color:#fff;background:var(--siteBlue);border-radius:8px;padding:7px}
+  .sheet-prev{overflow-x:auto;padding:11px 12px}
+  .sheet-prev table{width:100%;border-collapse:collapse;font-size:9.5px}
+  .sheet-prev th{background:#eef4ee;color:#1d6f42;font-weight:700;border:1px solid #cfe0d4;padding:4px 5px;text-align:left;white-space:nowrap}
+  .sheet-prev td{border:1px solid #d7e3da;padding:4px 5px;white-space:nowrap;transition:background .35s}
+  .sheet-prev td.fillcell{background:rgba(45,143,87,.16)}
+  .sheet-prev .rownote{font-size:9px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:4px;line-height:1.4}
+
+  .dual-badges{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:13px;opacity:0;transition:.5s}
+  .dual-badges.show{opacity:1}
+  .dbadge{font-size:11px;font-weight:800;color:var(--navy);background:rgba(28,140,140,.1);border:1px solid rgba(28,140,140,.4);padding:6px 13px;border-radius:999px;display:flex;align-items:center;gap:6px}
+  .dbadge .ck{color:var(--teal);font-weight:900}
+  .dbadge.count{color:var(--green);background:rgba(42,143,87,.1);border-color:rgba(42,143,87,.45)}
+  .dbadge.count .ck{color:var(--green)}
+  .beforeafter{text-align:center;font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.7}
+  .beforeafter .ba-old{text-decoration:line-through;color:#b0808a;opacity:0;transition:.4s}
+  .beforeafter.show .ba-old{opacity:1}
+  .beforeafter .ba-new{color:var(--teal);font-weight:800;opacity:0;transition:.4s .5s;display:block}
+  .beforeafter.show .ba-new{opacity:1}
+
+  /* バーチャルカーソル：行クリック演出のみ使用（2026-06-24 青山さん指示で部分復活） */
+  #vcursor{position:fixed;left:-100px;top:-100px;width:30px;height:30px;z-index:90;pointer-events:none;transition:left .7s cubic-bezier(.4,.1,.2,1),top .7s cubic-bezier(.4,.1,.2,1),opacity .35s;opacity:0;filter:drop-shadow(0 3px 7px rgba(0,0,0,.45))}
+  #vcursor.on{opacity:1}
+  #vcursor.press{transform:scale(.78)}
+  #vcursor .ring{position:absolute;inset:-8px;border-radius:50%;border:2.5px solid var(--teal);opacity:0}
+  #vcursor.press .ring{animation:tap .55s ease}
+  @keyframes tap{0%{opacity:.9;transform:scale(.35)}100%{opacity:0;transform:scale(1.9)}}
+
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--navy);color:#fff;padding:10px 18px;border-radius:999px;font-size:12.5px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:.35s;z-index:95;pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  #endcard{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 38%,#16386a,#0b2545 70%);opacity:0;pointer-events:none;transition:opacity .9s}
+  #endcard.show{opacity:1}
+  #endcard .ec-logo{width:96px;height:96px;border-radius:26px;background:linear-gradient(135deg,var(--teal),var(--teal-2));display:grid;place-items:center;box-shadow:0 18px 50px rgba(0,0,0,.4);transform:scale(.7) translateY(16px);opacity:0;transition:.8s cubic-bezier(.2,.8,.2,1) .2s}
+  #endcard.show .ec-logo{transform:none;opacity:1}
+  #endcard .ec-logo svg{width:54px;height:54px}
+  #endcard .ec-name{font-size:46px;font-weight:800;letter-spacing:1px;color:#fff;transform:translateY(18px);opacity:0;transition:.8s cubic-bezier(.2,.8,.2,1) .38s}
+  #endcard .ec-name .ac{color:var(--gold)}
+  #endcard.show .ec-name{transform:none;opacity:1}
+  #endcard .ec-line{width:0;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);transition:width .9s ease .6s}
+  #endcard.show .ec-line{width:240px}
+  #endcard .ec-tag{font-size:14px;color:#bcd0e8;letter-spacing:2px;opacity:0;transition:.8s .8s}
+  #endcard.show .ec-tag{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/><path d="M8 12h5" /><path d="M15 15l2 2 3.5-3.5" stroke="#d4af37"/></svg></div>
+    <div class="htxt"><h1>求人票作成エージェント</h1><p>既存スプレッドの並びをそのまま、クライアント中核のレコード表に</p></div>
+    <span class="badge-brand">ほくジョブ ／ 応援看護師サポート</span>
+    <button class="replay" id="replayBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>もう一度</button>
+  </header>
+
+  <div class="caption busy" id="caption">
+    <div class="cnum" id="cap-num">1</div>
+    <div class="ctxt"><b id="cap-title">スプレッドの並びを、そのまま見やすく</b><span id="cap-sub">クライアント中核のレコード表に集約</span></div>
+    <div class="spin"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg></div>
+  </div>
+
+  <div class="camviewport" id="camviewport">
+    <div class="camscene" id="camscene">
+      <div class="stage">
+
+        <!-- ===== ① 一覧画面 ===== -->
+        <div class="view show" id="view-list">
+          <div class="pagetabs">
+            <div class="ptab on"><span class="ptnum">1</span>求人マスター一覧 <span class="ptarrow">▸</span></div>
+            <div class="ptab"><span class="ptnum">2</span>1件の詳細 <span class="ptarrow">▸</span></div>
+            <div class="ptab"><span class="ptnum">3</span>スプレッド／サイト同期</div>
+          </div>
+          <div class="ss-wrap" id="ss-wrap">
+            <div class="ss-tabbar">
+              <span class="ss-name">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#1d6f42"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18" stroke="#fff" stroke-width="1.3"/></svg>
+                ほくジョブ_クライアント管理シート_2026
+              </span>
+              <span class="ss-meta">
+                <span>共有：5名</span><span>最終更新 <b>2026/06/24 09:12</b></span>
+              </span>
+            </div>
+            <div class="ss-toolbar">
+              <span class="ss-tool">ファイル</span><span class="ss-tool">編集</span><span class="ss-tool">表示</span>
+              <span class="ss-tool tsel">▦ 求人マスター</span>
+              <span style="margin-left:auto;font-size:9.5px;color:#6b7a8d">A1：J10　／　固定：1行</span>
+            </div>
+            <div class="ss-sheet-tabs">
+              <div class="ss-stab">クライアント一覧</div>
+              <div class="ss-stab on">求人マスター</div>
+              <div class="ss-stab">担当者メモ</div>
+              <div class="ss-stab">タスク</div>
+              <div class="ss-stab" style="color:#aab4be">＋</div>
+            </div>
+            <div class="ss-table-wrap">
+              <table class="ss-table" id="ss-table">
+                <colgroup>
+                  <col class="c-no"><col class="c-job"><col class="c-hos"><col class="c-area"><col class="c-pay"><col class="c-term"><col class="c-stat"><col class="c-pers"><col class="c-date"><col class="c-act">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th class="rowhead">#</th>
+                    <th>求人タイトル<span class="sortc">▾</span></th>
+                    <th>病院（クライアント）</th>
+                    <th>エリア</th>
+                    <th>給与レンジ</th>
+                    <th style="text-align:center">期間</th>
+                    <th style="text-align:center">状態</th>
+                    <th>主担当</th>
+                    <th>最終更新</th>
+                    <th style="text-align:center">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="ss-body"></tbody>
+              </table>
+            </div>
+            <div class="ss-footer">
+              <span><b>10件</b>の求人</span>
+              <span>列：A〜J</span>
+              <span style="margin-left:auto">Job Agent が読み書きしているのは、この同じシート</span>
+            </div>
+          </div>
+          <div class="ss-tip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1c8c8c" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5l3 2"/></svg>
+            既存スプレッドそのまま。<b>縦＝求人／横＝情報カラム</b>。行をクリックすると、その求人の詳細ページに移動します。
+          </div>
+        </div>
+
+        <!-- ===== ② 詳細画面 ===== -->
+        <div class="view" id="view-detail">
+          <div class="pagetabs">
+            <div class="ptab"><span class="ptnum">1</span>求人マスター一覧 <span class="ptarrow">▸</span></div>
+            <div class="ptab on"><span class="ptnum">2</span>応援看護師・6ヶ月（道央A病院）の詳細 <span class="ptarrow">▸</span></div>
+            <div class="ptab"><span class="ptnum">3</span>スプレッド／サイト同期</div>
+          </div>
+          <div class="detail-pageheader">
+            <span class="back-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>一覧へ戻る</span>
+            <span class="dph-name">
+              <span class="hic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg></span>
+              道央 A病院（仮）
+            </span>
+            <span class="chip-meta s-act">取引中</span>
+            <span class="chip-meta">道央エリア</span>
+            <span class="chip-meta">主担当：青山</span>
+            <span class="rec-id">HJ-CL-0007 <span class="live">スプレッド連動</span></span>
+          </div>
+
+          <div class="detail-grid">
+            <!-- 左カラム：クライアント情報＋メモ -->
+            <div class="detail-col">
+              <div class="frame h-client" id="frm-client">
+                <div class="frame-hd"><span class="fhi"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg></span>クライアント情報<span class="fhcount">基本＋連絡先</span></div>
+                <div class="frame-bd">
+                  <div class="ci-grid">
+                    <div><div class="k">エリア</div><b>北海道 道央（札幌近郊）</b></div>
+                    <div><div class="k">病院種別</div><b>急性期 / 一般病棟（260床）</b></div>
+                    <div><div class="k">取引状況</div><b>継続中（2024年〜）</b></div>
+                    <div><div class="k">契約条件</div><b>紹介手数料 30% ／ 返金規定あり</b></div>
+                  </div>
+                  <div class="ci-divider"></div>
+                  <div class="ci-sublabel">連絡先・面接ルール</div>
+                  <div class="ci-grid">
+                    <div><div class="k">採用担当（師長）</div><b>佐藤 様</b></div>
+                    <div><div class="k">事務窓口</div><b>高橋 様</b></div>
+                    <div><div class="k">面接可能日</div><b>火・木 14:00〜 ／ オンライン可</b></div>
+                    <div><div class="k">優先連絡</div><b>メール ＞ 電話（日中）</b></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="frame h-memo" id="frm-memo">
+                <div class="frame-hd"><span class="fhi"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><path d="M8 12h8M8 16h6"/></svg></span>メモ<span class="fhcount">時系列</span></div>
+                <div class="frame-bd">
+                  <div class="memo-list" id="memo-list">
+                    <div class="memo-item"><span class="mt">6/10</span><span>師長は即戦力を希望。プリセプターが立ち上がりをフォロー可。</span></div>
+                    <div class="memo-item"><span class="mt">6/15</span><span>面接は火・木のみ対応。オンライン面談OK。</span></div>
+                    <div class="memo-item new" id="memo-new"><span class="mt">6/24</span><span><b>追記：</b>7月から増員予定。給与レンジを+2万で出せるとのこと。</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右カラム：タスク＋求人情報 -->
+            <div class="detail-col">
+              <div class="frame h-task" id="frm-task">
+                <div class="frame-hd"><span class="fhi"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 11h16"/></svg></span>タスク<span class="fhcount">3件</span></div>
+                <div class="frame-bd">
+                  <div class="task-list">
+                    <div class="task-item"><span class="tcheck"></span><span class="tdue">6/26</span><span class="ttxt">佐藤師長へ給与レンジ最終確認の連絡</span><span class="towner">青山</span></div>
+                    <div class="task-item"><span class="tcheck"></span><span class="tdue">6/28</span><span class="ttxt">HJ-2025-0412 求人票 最終確認・公開</span><span class="towner">青山</span></div>
+                    <div class="task-item"><span class="tcheck"></span><span class="tdue">7/02</span><span class="ttxt">応募者の面接日程（火・木）すり合わせ</span><span class="towner">青山</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="frame h-job" id="frm-job">
+                <div class="frame-hd"><span class="fhi"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/></svg></span>求人情報<span class="fhcount">2件 ぶら下がり</span></div>
+                <div class="frame-bd">
+                  <div class="job-list">
+                    <div class="job-item" id="job-1">
+                      <div class="jic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/></svg></div>
+                      <div class="jmeta"><b>応援看護師・6ヶ月（寮完備）</b><span>2交代制 ／ 道央 ／ 求人ID HJ-2025-0412</span></div>
+                      <span class="jpay" id="job1-pay">月収 40〜50万</span>
+                      <span class="jstat s-warm" id="job1-stat">調整中</span>
+                    </div>
+                    <div class="job-item" id="job-2">
+                      <div class="jic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/></svg></div>
+                      <div class="jmeta"><b>トラベルナース・3ヶ月</b><span>夜勤あり ／ 道央 ／ 求人ID HJ-2025-0418</span></div>
+                      <span class="jpay">月収 45〜55万</span>
+                      <span class="jstat s-open">公開中</span>
+                    </div>
+                  </div>
+
+                  <div class="jobsite-preview-wrap">
+                    <div class="jobsite-card">
+                      <div class="jsc-pills">
+                        <span class="jsc-pill">寮完備</span>
+                        <span class="jsc-pill">2交代</span>
+                        <span class="jsc-pill">短期OK</span>
+                        <span class="jsc-pill warm" id="jsc-status">調整中</span>
+                      </div>
+                      <p class="jsc-title">【道央 A病院（仮）】応援看護師・6ヶ月／寮完備・札幌近郊</p>
+                      <div class="jsc-pay" id="jsc-pay">月額 400,000<span class="u">〜500,000円</span></div>
+                      <div class="jsc-row"><span class="k">エリア</span>北海道 道央（札幌近郊）</div>
+                      <div class="jsc-row"><span class="k">期間</span>6ヶ月（最短3ヶ月〜）</div>
+                      <div class="jsc-row"><span class="k">休日</span>4週8休（シフト制）</div>
+                      <div class="jsc-keep"><svg width="9" height="9" viewBox="0 0 24 24" fill="#1e6bb8"><path d="M6 2v20l6-4 6 4V2z"/></svg><b>32人</b>がこの求人をキープ</div>
+                      <div class="jsc-cta">この求人に応募・相談する</div>
+                    </div>
+                    <div class="ps-note"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1c8c8c" stroke-width="2.4"><path d="M5 13l4 4L19 7"/></svg>求人サイト掲載時のレイアウト。Job Agentでの編集はここに即反映されます。</div>
+                  </div>
+
+                  <div class="editbar" id="editbar">
+                    <span class="ebl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a9772a" stroke-width="2.4"><path d="M4 20h16"/><path d="M14 4l6 6L8 22H2v-6z"/></svg>Job Agent で更新</span>
+                    <button class="edit-btn" id="upBtn">求人レンジ＋メモを1か所だけ更新</button>
+                    <span class="ebnote">スプレッド＋掲載サイトに自動同期</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== ③ 同期画面 ===== -->
+        <div class="view" id="view-sync">
+          <div class="pagetabs">
+            <div class="ptab"><span class="ptnum">1</span>求人マスター一覧 <span class="ptarrow">▸</span></div>
+            <div class="ptab"><span class="ptnum">2</span>応援看護師・6ヶ月（道央A病院）の詳細 <span class="ptarrow">▸</span></div>
+            <div class="ptab on"><span class="ptnum">3</span>スプレッド／サイト同期</div>
+          </div>
+          <div class="card sync-card">
+            <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px"><span class="dot"></span>
+              <h2 style="border:0;padding:0;margin:0">Job Agentで1か所更新 → スプレッド＋サイトに自動同期</h2>
+            </div>
+            <div class="dual" id="dual-region">
+              <div class="pane">
+                <div class="out-card" id="out-sheet">
+                  <div class="oc-head sheet"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>既存スプレッドシート（土台・維持）<span class="badge-base">そのまま</span></div>
+                  <div class="oc-body sheet-prev">
+                    <table id="sheet-table">
+                      <tr><th>病院</th><th>求人ID</th><th>エリア</th><th>期間</th><th>下限</th><th>上限</th><th>状態</th></tr>
+                      <tr id="sheet-row">
+                        <td data-cell="0"></td><td data-cell="1"></td><td data-cell="2"></td><td data-cell="3"></td><td data-cell="4"></td><td data-cell="5"></td><td data-cell="6"></td>
+                      </tr>
+                    </table>
+                    <div class="rownote"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2a8f57" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>既存運用そのまま、Job Agentから自動反映</div>
+                  </div>
+                </div>
+              </div>
+              <div class="pane flow" id="flow">
+                <svg viewBox="0 0 168 250" preserveAspectRatio="none">
+                  <path d="M84 125 C 48 125, 30 100, 6 100"/>
+                  <path d="M84 125 C 120 125, 138 150, 162 150"/>
+                </svg>
+                <div class="source-card" id="source-card">
+                  <div class="sc-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg></div>
+                  <b>Job Agent</b><span>クライアント中核 CRM</span>
+                  <div class="src-id">HJ-CL-0007</div>
+                </div>
+              </div>
+              <div class="pane">
+                <div class="out-card" id="out-site">
+                  <div class="oc-head site"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg>求人サイト 掲載ページ<span class="badge-base">自動更新</span></div>
+                  <div class="oc-body site-prev">
+                    <div class="sp-card">
+                      <div class="sp-pills">
+                        <span class="sp-pill">寮完備</span>
+                        <span class="sp-pill">2交代</span>
+                        <span class="sp-pill">短期OK</span>
+                        <span class="sp-pill" id="site-status">公開中</span>
+                      </div>
+                      <p class="sp-title">【道央 A病院（仮）】応援看護師・6ヶ月／寮完備・札幌近郊</p>
+                      <div class="sp-pay" id="site-pay">月額 400,000<span class="u">〜500,000円</span></div>
+                      <div class="sp-row"><span class="k">エリア</span>北海道 道央（札幌近郊）</div>
+                      <div class="sp-row"><span class="k">期間</span>6ヶ月（最短3ヶ月〜）</div>
+                      <div class="sp-row"><span class="k">状態</span><span id="site-stat" style="font-weight:700;color:var(--siteBlue)">公開中</span></div>
+                      <div class="sp-cta">この求人に応募・相談する</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="dual-badges" id="dual-badges">
+              <span class="dbadge count"><span class="ck">✓</span>二重入力 0回</span>
+              <span class="dbadge"><span class="ck">✓</span>今後は Job Agent だけ開けばOK</span>
+            </div>
+            <div class="beforeafter" id="beforeafter">
+              <span class="ba-old">従来：スプレッドに手入力 → サイトにも再入力（二重管理）</span>
+              <span class="ba-new">これからは Job Agent で1か所更新 → スプレッド＋サイトに自動同期</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="endcard">
+  <div class="ec-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/><path d="M8 12h5"/><path d="M15 15l2 2 3.5-3.5" stroke="#d4af37"/></svg></div>
+  <div class="ec-name">Job <span class="ac">Agent</span></div>
+  <div class="ec-line"></div>
+  <div class="ec-tag">ほくジョブ ／ 応援看護師サポート</div>
+</div>
+
+<div id="vcursor"><svg width="28" height="28" viewBox="0 0 24 24" fill="#0b2545" stroke="#fff" stroke-width="1.2"><path d="M5 3l15 9-6.5 1.5L11 21z"/></svg><div class="ring"></div></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  let token=0;
+  const cursor=$('#vcursor'), vp=$('#camviewport'), scene=$('#camscene');
+
+  const ROWS=[
+    {t:'応援看護師・6ヶ月（寮完備）',h:'道央 A病院（仮）',a:'道央',pay:'月収 40〜50万',term:'6ヶ月',stat:'調整中',statCls:'s-warm',pers:'青山',up:'06/24'},
+    {t:'トラベルナース・3ヶ月',h:'道央 A病院（仮）',a:'道央',pay:'月収 45〜55万',term:'3ヶ月',stat:'公開中',statCls:'s-open',pers:'青山',up:'06/24'},
+    {t:'救急対応看護師・4ヶ月',h:'道北 B病院（仮）',a:'道北',pay:'月収 42〜50万',term:'4ヶ月',stat:'商談中',statCls:'s-warm',pers:'木村',up:'06/22'},
+    {t:'夜勤強化看護師・6ヶ月',h:'道南 C病院（仮）',a:'道南',pay:'月収 50〜55万',term:'6ヶ月',stat:'公開中',statCls:'s-open',pers:'青山',up:'06/24'},
+    {t:'即戦力看護師・3ヶ月',h:'道東 D病院（仮）',a:'道東',pay:'月収 43〜52万',term:'3ヶ月',stat:'公開中',statCls:'s-open',pers:'佐々木',up:'06/23'},
+    {t:'急性期夜勤看護師・6ヶ月',h:'札幌 E総合病院（仮）',a:'道央',pay:'月収 48〜55万',term:'6ヶ月',stat:'調整中',statCls:'s-warm',pers:'青山',up:'06/24'},
+    {t:'外来日勤看護師・通年',h:'札幌 E総合病院（仮）',a:'道央',pay:'月収 38〜45万',term:'通年',stat:'公開中',statCls:'s-open',pers:'青山',up:'06/22'},
+    {t:'契約看護師・6ヶ月',h:'帯広 G病院（仮）',a:'道東',pay:'月収 40〜48万',term:'6ヶ月',stat:'商談中',statCls:'s-warm',pers:'佐々木',up:'06/22'},
+    {t:'療養型長期看護師',h:'旭川 H病院（仮）',a:'道北',pay:'月収 38〜45万',term:'長期',stat:'公開中',statCls:'s-open',pers:'木村',up:'06/21'},
+    {t:'訪問看護師・通年',h:'旭川 H病院（仮）',a:'道北',pay:'月収 42〜50万',term:'通年',stat:'公開中',statCls:'s-open',pers:'木村',up:'06/21'},
+  ];
+
+  function actBtns(){
+    const ic={
+      view:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+      memo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><path d="M8 12h8M8 16h6"/></svg>',
+      task:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 11h16"/></svg>',
+      edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16"/><path d="M14 4l6 6L8 22H2v-6z"/></svg>'
+    };
+    return '<div class="cell-act"><span class="act-ic" title="求人票プレビュー">'+ic.view+'</span><span class="act-ic" title="メモ">'+ic.memo+'</span><span class="act-ic" title="タスク">'+ic.task+'</span><span class="act-ic" title="情報編集">'+ic.edit+'</span></div>';
+  }
+  function buildRows(){
+    const tb=$('#ss-body'); tb.innerHTML='';
+    ROWS.forEach((r,i)=>{
+      const tr=document.createElement('tr'); tr.dataset.i=i; if(i===0) tr.id='row-A';
+      tr.innerHTML=
+        '<td class="rowidx">'+(i+1)+'</td>'+
+        '<td><div class="cell-job"><span class="jic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4h6v2"/></svg></span><span class="jt">'+r.t+'</span></div></td>'+
+        '<td class="cell-hos">'+r.h+'</td>'+
+        '<td class="cell-area">'+r.a+'</td>'+
+        '<td class="cell-pay">'+r.pay+'</td>'+
+        '<td class="cell-term">'+r.term+'</td>'+
+        '<td style="text-align:center"><span class="cell-stat '+r.statCls+'">'+r.stat+'</span></td>'+
+        '<td class="cell-pers">'+r.pers+'</td>'+
+        '<td class="cell-date">2026/'+r.up+'</td>'+
+        '<td>'+actBtns()+'</td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  // ===== カメラ =====
+  function sceneCoords(el){ let x=0,y=0,n=el; while(n && n!==scene){ x+=n.offsetLeft; y+=n.offsetTop; n=n.offsetParent; } return {x,y,w:el.offsetWidth,h:el.offsetHeight}; }
+  function applyCam(tx,ty,s){ scene.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')'; }
+  function fitView(viewId){
+    const v=$('#'+viewId); if(!v) return cameraFit();
+    const vw=vp.clientWidth, vh=vp.clientHeight;
+    const sw=scene.offsetWidth;
+    const vbw=v.offsetWidth+36;
+    const vbh=v.offsetHeight+36;
+    const s=Math.min(vw/vbw, vh/vbh)*0.985;
+    const tx=(vw-sw*s)/2, ty=(vh-vbh*s)/2;
+    applyCam(tx,ty,s);
+  }
+  function cameraFit(){ const vw=vp.clientWidth,vh=vp.clientHeight,sw=scene.offsetWidth,sh=scene.offsetHeight;
+    const s=Math.min(vw/sw, vh/sh)*0.985; const tx=(vw-sw*s)/2, ty=(vh-sh*s)/2; applyCam(tx,ty,s); }
+  function zoomTo(el,scale,bias){ const c=sceneCoords(el); const vw=vp.clientWidth,vh=vp.clientHeight;
+    const maxS=Math.min(vw/scene.offsetWidth, vh/scene.offsetHeight);
+    const s=Math.min(scale, maxS);
+    const cx=c.x+c.w/2, cy=c.y+c.h/2;
+    let tx=vw/2 - cx*s, ty=vh*(bias||0.5) - cy*s;
+    const minTx=vw-scene.offsetWidth*s, minTy=vh-scene.offsetHeight*s;
+    tx=Math.max(minTx, Math.min(0, tx));
+    ty=Math.max(minTy, Math.min(0, ty));
+    applyCam(tx,ty,s); }
+
+  function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+  function setCap(num,title,sub,opts){opts=opts||{};$('#cap-num').textContent=num;$('#cap-title').textContent=title;$('#cap-sub').textContent=sub;const c=$('#caption');c.classList.toggle('busy',!opts.done);c.classList.toggle('done-state',!!opts.done);}
+  function moveCursor(el){const r=el.getBoundingClientRect();cursor.style.left=(r.left+r.width*0.5)+'px';cursor.style.top=(r.top+r.height*0.55)+'px';}
+  async function clickEl(el){moveCursor(el);await sleep(720);moveCursor(el);await sleep(120);cursor.classList.add('press');el.classList.add('pressed');await sleep(420);cursor.classList.remove('press');await sleep(150);el.classList.remove('pressed');}
+
+  // ===== ページめくり =====
+  async function flipTo(toId){
+    const views=['view-list','view-detail','view-sync'];
+    const cur=views.find(v=>$('#'+v).classList.contains('show'));
+    if(cur===toId) return;
+    if(cur){
+      const curV=$('#'+cur);
+      curV.classList.remove('show');
+      curV.classList.add('leave');
+    }
+    await sleep(60);
+    const nx=$('#'+toId);
+    nx.classList.remove('leave');
+    nx.classList.add('show');
+    // 切替中に新しいビューに合わせてカメラを動かす
+    await sleep(200);
+    fitView(toId);
+    await sleep(600);
+    if(cur) $('#'+cur).classList.remove('leave');
+  }
+
+  const SHEET_VALS=['道央A（仮）','HJ-2025-0412','道央','6ヶ月','40万','50万','調整中'];
+  async function fillSheetRow(my){
+    for(let i=0;i<SHEET_VALS.length;i++){ if(my!==token)return;
+      const td=$('#sheet-row td[data-cell="'+i+'"]'); td.textContent=SHEET_VALS[i]; td.classList.add('fillcell');
+      await sleep(160); td.classList.remove('fillcell'); }
+  }
+
+  async function run(){
+    const my=++token; reset(); await sleep(60); fitView('view-list');
+
+    // ① 求人マスター一覧（カメラ動かさず、3秒静止して見せる）
+    setCap('1','スプレッドの並びを、そのまま見やすく','縦＝求人・横＝情報カラム。Job Agentが扱うのも同じシート');
+    await sleep(3000); if(my!==token)return;
+
+    // ② 1行目にカーソル → クリック → ページめくり
+    setCap('2','求人をクリックして、詳細ページへ','クライアント情報・タスク・メモ・求人情報の4枠でひとまとめ');
+    const row=$('#row-A');
+    cursor.style.left=(window.innerWidth-60)+'px';
+    cursor.style.top=(window.innerHeight*0.65)+'px';
+    cursor.classList.add('on');
+    await sleep(150);
+    moveCursor(row);
+    await sleep(900); if(my!==token)return;
+    await clickEl(row); if(my!==token)return;
+    row.classList.add('row-active');
+    await sleep(220);
+    cursor.classList.remove('on');
+    await flipTo('view-detail'); if(my!==token)return;
+    await sleep(3300); if(my!==token)return;
+
+    // Job Agent で更新（カーソル動かさず、ボタンをハイライト→給与/ステータス書き換わるだけ）
+    setCap('2','Job Agentで、1か所だけ更新','給与レンジ・掲載ステータス・メモが同時に最新化');
+    $('#editbar').classList.add('show');
+    await sleep(560); // editbar transition (0.5s) 完了を待つ
+    fitView('view-detail'); // 編集バー込みの高さに合わせて画面を再フィット（見切れ防止）
+    await sleep(500); if(my!==token)return;
+    const up=$('#upBtn'); up.classList.add('pressed'); await sleep(260); up.classList.remove('pressed');
+    await sleep(280); if(my!==token)return;
+
+    // メモ追記
+    $('#memo-new').classList.add('show','mk','flash');
+    await sleep(850); if(my!==token)return; $('#memo-new').classList.remove('mk','flash');
+
+    // 求人カード＋プレビュー同時更新
+    const job1=$('#job-1'); job1.classList.add('editing');
+    const jp=$('#job1-pay'); jp.textContent='月収 42〜52万'; jp.classList.add('mk','fixed','flash');
+    const js=$('#job1-stat'); js.textContent='公開'; js.className='jstat s-open mk flash';
+    const jscp=$('#jsc-pay'); jscp.innerHTML='月額 420,000<span class="u">〜520,000円</span>'; jscp.classList.add('mk','flash');
+    const jscs=$('#jsc-status'); jscs.textContent='公開中'; jscs.className='jsc-pill';
+    toast('給与レンジ＋掲載ステータスを更新');
+    await sleep(1700); if(my!==token)return;
+    jp.classList.remove('flash'); js.classList.remove('mk','flash'); jscp.classList.remove('mk','flash'); job1.classList.remove('editing');
+    await sleep(900); if(my!==token)return;
+
+    // ③ 同期画面へページめくり
+    setCap('3','スプレッドもサイトも、つねに最新','二重管理を、ゼロに');
+    $('#editbar').classList.remove('show');
+    await flipTo('view-sync'); if(my!==token)return;
+    await sleep(500);
+
+    $('#out-sheet').classList.add('in');
+    $('#out-site').classList.add('in');
+    await sleep(500); if(my!==token)return;
+    $('#source-card').classList.add('mk','flash'); await sleep(600); if(my!==token)return; $('#source-card').classList.remove('mk','flash');
+    $('#flow').classList.add('on');
+    await sleep(550); if(my!==token)return;
+    await fillSheetRow(my); if(my!==token)return;
+    await sleep(300); if(my!==token)return;
+
+    const sitePay=$('#site-pay'); sitePay.innerHTML='月額 420,000<span class="u">〜520,000円</span>'; sitePay.classList.add('mk','flash');
+    const siteStat=$('#site-stat'); siteStat.textContent='公開中';
+    const c4=$('#sheet-row td[data-cell="4"]'), c5=$('#sheet-row td[data-cell="5"]'), c6=$('#sheet-row td[data-cell="6"]');
+    c4.textContent='42万'; c5.textContent='52万'; c6.textContent='公開中';
+    c4.classList.add('fillcell'); c5.classList.add('fillcell'); c6.classList.add('fillcell');
+    toast('Job Agent の最新値が、スプレッド＋サイトに同時反映');
+    await sleep(1500); if(my!==token)return;
+    c4.classList.remove('fillcell'); c5.classList.remove('fillcell'); c6.classList.remove('fillcell'); sitePay.classList.remove('mk','flash');
+    $('#flow').classList.remove('on');
+    $('#dual-badges').classList.add('show'); await sleep(500); if(my!==token)return;
+    $('#beforeafter').classList.add('show');
+    setCap('3','二重管理を、ゼロに','今後は Job Agent だけ開けばOK',{done:true});
+    await sleep(2500); if(my!==token)return;
+
+    $('#endcard').classList.add('show');
+  }
+
+  function reset(){
+    $('#endcard').classList.remove('show');
+    buildRows();
+    ['view-list','view-detail','view-sync'].forEach(id=>{
+      const v=$('#'+id); v.classList.remove('show','leave');
+    });
+    $('#view-list').classList.add('show');
+    $$('.frame.focused').forEach(f=>f.classList.remove('focused'));
+    $('#memo-new').classList.remove('show','mk','flash');
+    const jp=$('#job1-pay'); jp.textContent='月収 40〜50万'; jp.className='jpay';
+    const js=$('#job1-stat'); js.textContent='調整中'; js.className='jstat s-warm';
+    $('#job-1').classList.remove('editing');
+    $('#editbar').classList.remove('show');
+    $('#out-site').classList.remove('in'); $('#out-sheet').classList.remove('in');
+    $('#flow').classList.remove('on');
+    $('#dual-badges').classList.remove('show'); $('#beforeafter').classList.remove('show');
+    const sitePay=$('#site-pay'); sitePay.innerHTML='月額 400,000<span class="u">〜500,000円</span>'; sitePay.className='sp-pay';
+    const siteStat=$('#site-stat'); if(siteStat) siteStat.textContent='公開中';
+    const jscp=$('#jsc-pay'); if(jscp){ jscp.innerHTML='月額 400,000<span class="u">〜500,000円</span>'; jscp.className='jsc-pay'; }
+    const jscs=$('#jsc-status'); if(jscs){ jscs.textContent='調整中'; jscs.className='jsc-pill warm'; }
+    $$('#sheet-row td').forEach(td=>{td.textContent='';td.classList.remove('fillcell');});
+    $$('.row-active').forEach(r=>r.classList.remove('row-active'));
+  }
+
+  window.addEventListener('resize',()=>{
+    const cur=['view-list','view-detail','view-sync'].find(v=>$('#'+v).classList.contains('show'));
+    if(cur) fitView(cur);
+  });
+  $('#replayBtn').addEventListener('click',function(){ run(); });
+  setTimeout(()=>{ buildRows(); fitView('view-list'); run(); },80);
+})();
+</script>
+</body>
+</html>
