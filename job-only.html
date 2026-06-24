@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ほくジョブ AI提案 ｜ Job Agent ｜ GIFT</title>
+<link rel="stylesheet" href="vendor/reveal/reveal.css">
+<style>
+ :root{--navy:#0A0E2B;--royal:#1A3FBF;--elec:#2E5BFF;--sky:#65B9DD;}
+ .reveal{font-family:"Noto Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",YuGothic,"Meiryo",sans-serif;}
+ .reveal .slides{text-align:left;}
+ .reveal section{padding:0;height:720px;}
+ .stage{position:absolute;inset:0;width:1280px;height:720px;overflow:hidden;}
+ .ey{display:inline-block;font-size:18px;letter-spacing:.32em;color:var(--sky);font-weight:800;border-bottom:2px solid #D4AF37;padding-bottom:6px;}
+ .ttl{color:#fff;font-weight:900;line-height:1.22;margin-top:12px;text-shadow:0 2px 20px rgba(6,12,34,.5);}
+ .sub{color:#c8d6f2;font-size:22px;margin-top:16px;line-height:1.6;}
+ .kw{background:linear-gradient(100deg,#65B9DD,#2E5BFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
+ .pn{position:absolute;right:26px;bottom:18px;color:#9fb6d6;font-size:14px;}
+ .head{position:absolute;left:64px;top:54px;}
+ .cards{position:absolute;display:flex;gap:22px;}
+ .card{box-sizing:border-box;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(140,180,255,.32);border-radius:16px;padding:24px;}
+ .card .h{color:#fff;font-weight:800;font-size:23px;}
+ .card .p{color:#bcd0f2;font-size:16px;margin-top:9px;line-height:1.55;}
+ .num{display:inline-flex;width:38px;height:38px;border-radius:11px;background:linear-gradient(120deg,#2E5BFF,#65B9DD);color:#fff;font-weight:800;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px;}
+ .band{position:absolute;left:64px;right:64px;bottom:54px;color:#dff0ff;font-size:18px;font-weight:700;background:rgba(46,91,255,.16);border-left:4px solid #D4AF37;border-radius:0 10px 10px 0;padding:15px 20px;}
+ .anim{opacity:0;transform:translate(var(--tx,0px),26px);}
+ .present .anim{animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards;}
+ @keyframes rise{to{opacity:1;transform:translate(var(--tx,0px),0);}}
+ .d1{animation-delay:.05s}.d2{animation-delay:.18s}.d3{animation-delay:.32s}.d4{animation-delay:.46s}.d5{animation-delay:.6s}.d6{animation-delay:.74s}
+ .lift{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background:radial-gradient(120% 95% at 64% 32%, rgba(46,91,255,.20), rgba(26,63,191,.08) 46%, transparent 76%);}
+</style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- 1 MVPデモ① 求人票CM -->
+<section data-background-image="assets/bg-divider-c.webp" data-background-size="cover" data-background-color="#0A0E2B">
+ <div class="stage">
+  <div class="head"><div class="ey anim d1">MVP DEMO ①</div><div class="ttl anim d2" style="font-size:32px;"><span class="kw">Job Agent</span> ｜ 求人票＋クライアントCRM</div></div>
+  <video class="anim d3" data-autoplay controls playsinline preload="auto" src="assets/cm-job.mp4" poster="assets/cm-job-poster.png" style="position:absolute;left:200px;top:150px;width:880px;height:495px;border-radius:14px;box-shadow:0 22px 60px rgba(0,0,0,.55);background:#000;object-fit:contain;"></video>
+  <div class="pn">1 / 2</div>
+ </div>
+</section>
+
+<!-- 2 MVP① できること（Job Agent要件） -->
+<section data-background-image="assets/bg-divider-c.webp" data-background-size="cover" data-background-color="#0A0E2B">
+ <div class="stage">
+  <div class="head"><div class="ey anim d1">MVP DEMO ① ・ できること</div><div class="ttl anim d2" style="font-size:30px;">「Job Agent」が、<span class="kw">二重管理をゼロに</span>。</div></div>
+  <div style="position:absolute;left:64px;top:262px;right:64px;display:flex;gap:18px;">
+   <div class="card anim d3" style="flex:1;min-height:340px;background:rgba(10,18,46,.55);border-color:rgba(120,170,255,.45);backdrop-filter:blur(8px);padding:22px;"><div class="num">1</div><div class="h" style="font-size:19px;">既存スプレッドを土台に</div><div class="p" style="font-size:14px;">縦＝求人／横＝情報カラムのまま、Job Agentが同じシートを読み書き。運用変更はゼロ。</div></div>
+   <div class="card anim d4" style="flex:1;min-height:340px;background:rgba(10,18,46,.55);border-color:rgba(120,170,255,.45);backdrop-filter:blur(8px);padding:22px;"><div class="num">2</div><div class="h" style="font-size:19px;">1クリックで4枠が統合</div><div class="p" style="font-size:14px;">求人1行をクリック→クライアント情報・タスク・メモ・求人情報が1画面に。資料を探す時間ゼロ。</div></div>
+   <div class="card anim d5" style="flex:1;min-height:340px;background:rgba(10,18,46,.6);border-color:rgba(212,175,55,.55);backdrop-filter:blur(8px);padding:22px;"><div class="num" style="background:linear-gradient(120deg,#E7C873,#D4AF37);">3</div><div class="h" style="font-size:19px;">1か所更新で、2か所同期<span style="color:#E7C873;font-size:13px;"> ・主役</span></div><div class="p" style="font-size:14px;">Job Agentで1回直すと、既存スプレッドと求人サイト掲載ページに同時反映。二度書きを根本から無くします。</div></div>
+   <div class="card anim d6" style="flex:1;min-height:340px;background:rgba(10,18,46,.55);border-color:rgba(120,170,255,.45);backdrop-filter:blur(8px);padding:22px;"><div class="num">4</div><div class="h" style="font-size:19px;">クライアント中核へ拡張</div><div class="p" style="font-size:14px;">求人はクライアントにぶら下がる構造。求職者・履歴も積み増せば、ほくジョブ版CRMの中核に。</div></div>
+  </div>
+  <div class="band anim d6">クライアントを軸に情報を束ね、Job Agentで1か所更新→スプレッド＋サイトに自動同期。二重管理を、ゼロに。</div>
+  <div class="pn">2 / 2</div>
+ </div>
+</section>
+
+</div></div>
+<script src="vendor/reveal/reveal.js"></script>
+<script src="vendor/reveal/notes.js"></script>
+<script>
+ var NOTES=[
+  "MVPデモ①。Job Agent（求人票＋クライアントCRM）の“こう動く”を、既存スプレッドの並びそのままに、1行クリックで詳細→クライアント情報・タスク・メモ・求人情報の4枠が1画面に、Job Agentで1か所更新するだけでスプレッドと求人サイトに自動同期されるイメージでお見せします。",
+  "Job Agentが実際にできることを4つで。①既存スプレッドを土台に（運用変更ゼロ）、②1クリックで4枠が統合、③1か所更新で2か所同期（主役）、④クライアント中核へ拡張。求人票の二度書きを根本からなくし、いずれは“ほくジョブ版CRM”の中核に育てます。"
+ ];
+ document.querySelectorAll('.slides > section').forEach(function(s,i){ if(NOTES[i]){ var a=document.createElement('aside'); a.className='notes'; a.textContent=NOTES[i]; s.appendChild(a);} });
+ document.querySelectorAll('section[data-background-image]').forEach(function(s){
+  var img=s.getAttribute('data-background-image')||'';
+  if(/scene-|bg-divider/.test(img)){ var st=s.querySelector('.stage'); if(st){ var l=document.createElement('div'); l.className='lift'; st.insertBefore(l, st.firstChild); } }
+ });
+ Reveal.initialize({width:1280,height:720,margin:0,controls:true,progress:true,hash:true,transition:'fade',transitionSpeed:'slow',backgroundTransition:'fade',plugins:[RevealNotes]});
+</script>
+</body>
+</html>
